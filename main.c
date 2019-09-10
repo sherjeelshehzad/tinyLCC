@@ -4,9 +4,13 @@
  * Created: 5/09/2019 2:02:59 PM
  * Author : ktan404
  */ 
- 
-//TODO: create 4 signal outputs for each switch so we can avoid inversion related issues
-//and actually get true bidirectional current
+
+//switch 1-4 control signals = PB4-PB7
+//left PMOS = PB4
+//left NMOS = PB5
+//right PMOS = PB6
+//right NMOS = PB7
+
 #define F_CPU 8000000UL
 
 #include <stdio.h>
@@ -21,10 +25,26 @@ extern volatile unsigned int t2 = 0; //flag for if T/2 time crossing is next to 
 ISR(TIMER1_COMPA_vect){
 	//turn off PWM
 	TCCR2 &= ~((1<<CS22) | (1<<CS21) | (1<<CS20));
-	//turn on PWM output
-	PORTB |= (1<<PB6);
-	//turn on inverted PWM output
-	PORTB |= (1<<PB7);
+	//disable PWM
+	//open all switches so motor coasts along
+	//turn off left PMOS
+	//PORTB &= ~(1<<PB4);
+	//turn off left NMOS
+	//PORTB |= (1<<PB5);
+	//turn off right PMOS
+	//PORTB &= ~(1<<PB6);
+	//turn off right NMOS
+	//PORTB |= (1<<PB7);
+	
+	//turn off PMOSes, turn on NMOSes so motor brakes?!
+	//turn off left PMOS
+	PORTB &= ~(1<<PB4);
+	//turn on left NMOS
+	PORTB &= ~(1<<PB5);
+	//turn off right PMOS
+	PORTB &= ~(1<<PB6);
+	//turn on right NMOS
+	PORTB &= ~(1<<PB7);
 	//reset PWM timer counter
 	TCNT2 = 0;
 }
@@ -74,49 +94,69 @@ ISR(TIMER1_COMPB_vect){
 	}
 }
 
+//PWM duty cycle expired, shut off signal
 ISR(TIMER2_COMP_vect){
-	if (!(t2)){
-		//turn off PWM output
-		PORTB &= ~(1<<PB6);
-		//turn on inverted PWM output
+	//open all switches so motor coasts along
+	//turn off left PMOS
+	//PORTB &= ~(1<<PB4);
+	//turn off left NMOS
+	//PORTB |= (1<<PB5);
+	//turn off right PMOS
+	//PORTB &= ~(1<<PB6);
+	//turn off right NMOS
+	//PORTB |= (1<<PB7);
+	
+	//turn off PMOSes, turn on NMOSes so motor brakes?!
+	//turn off left PMOS
+	PORTB &= ~(1<<PB4);
+	//turn on left NMOS
+	PORTB &= ~(1<<PB5);
+	//turn off right PMOS
+	PORTB &= ~(1<<PB6);
+	//turn on right NMOS
+	PORTB &= ~(1<<PB7);
+}
+
+//PWM restarted, change switches according to current current direction
+ISR(TIMER2_OVF_vect){
+	if ((t2)){
+		//right to left current
+		//turn off left PMOS
+		PORTB &= ~(1<<PB4);
+		//turn on left NMOS
+		PORTB &= ~(1<<PB5);
+		//turn on right PMOS
+		PORTB |= (1<<PB6);
+		//turn off right NMOS
 		PORTB |= (1<<PB7);
 	}
 	else{
-		//turn on PWM output
-		PORTB |= (1<<PB6);
-		//turn off inverted PWM output
+		//left to right current
+		//turn on left PMOS
+		PORTB |= (1<<PB4);
+		//turn off left NMOS
+		PORTB |= (1<<PB5);
+		//turn off right PMOS
+		PORTB &= ~(1<<PB6);
+		//turn on right NMOS
 		PORTB &= ~(1<<PB7);
 	}
 }
 
-ISR(TIMER2_OVF_vect){
-	if (!(t2)){
-		//turn on PWM output
-		PORTB |= (1<<PB6);
-		//turn off inverted PWM output
-		PORTB &= ~(1<<PB7);
-	}
-	else{
-		//turn off PWM output
-		PORTB &= ~(1<<PB6);
-		//turn on inverted PWM output
-		PORTB |= (1<<PB7);
-	}
-	
-}
 int main(void)
 {
+	//set ports as output
 	DDRC = 0xFF;
-	//set OC2 pin as output
-	DDRB |= ((1<<PB3)|(1<<PB7)|(1<<PB6));
+	DDRB = 0xFF;
 	//set normal timer mode
 	TCCR2 &= ~(1<<WGM20);
 	TCCR2 &= ~(1<<WGM21);
+	
 	//disconnect OC2 port
 	TCCR2 &= ~((1<<COM21) | (1<<COM20));
 	
-	//set output compare value for timer 2 between 0-128 ((128-OCR2)/255 % duty cycle)
-	OCR2 = 128;	
+	//set output compare value for timer 2 between 0-255 (OCR2/255 % duty cycle)
+	OCR2 = 128;
 	
 	//set prescaler of 64 (gives effective PWM frequency of 490Hz)
 	//TCCR2 |= (1<<CS22);
@@ -125,10 +165,15 @@ int main(void)
 	TCCR2 |= ((1<<CS22) | (1<<CS20));
 	TCCR2 &= ~((1<<CS21));
 	
-	//turn on PWM output
-	PORTB |= (1<<PB6);
-	//turn on inverted PWM output
-	PORTB |= (1<<PB6);
+	//turn off PMOSes, turn on NMOSes so motor brakes?!
+	//turn off left PMOS
+	PORTB &= ~(1<<PB4);
+	//turn on left NMOS
+	PORTB &= ~(1<<PB5);
+	//turn off right PMOS
+	PORTB &= ~(1<<PB6);
+	//turn on right NMOS
+	PORTB &= ~(1<<PB7);
 	
 	//set timer 1 to normal mode
 	TCCR1B &= ~((1<<WGM13) | (1<<WGM12));
