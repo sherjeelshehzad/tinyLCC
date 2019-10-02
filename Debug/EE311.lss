@@ -3,31 +3,31 @@ EE311.elf:     file format elf32-avr
 
 Sections:
 Idx Name          Size      VMA       LMA       File off  Algn
-  0 .text         0000020c  00000000  00000000  00000074  2**1
+  0 .text         000001fe  00000000  00000000  00000074  2**1
                   CONTENTS, ALLOC, LOAD, READONLY, CODE
-  1 .data         00000000  00800060  00800060  00000280  2**0
+  1 .data         00000000  00800060  00800060  00000272  2**0
                   CONTENTS, ALLOC, LOAD, DATA
-  2 .bss          00000004  00800060  00800060  00000280  2**0
+  2 .bss          00000002  00800060  00800060  00000272  2**0
                   ALLOC
-  3 .comment      00000030  00000000  00000000  00000280  2**0
+  3 .comment      00000030  00000000  00000000  00000272  2**0
                   CONTENTS, READONLY
-  4 .note.gnu.avr.deviceinfo 0000003c  00000000  00000000  000002b0  2**2
+  4 .note.gnu.avr.deviceinfo 0000003c  00000000  00000000  000002a4  2**2
                   CONTENTS, READONLY
-  5 .debug_aranges 00000040  00000000  00000000  000002ec  2**0
+  5 .debug_aranges 00000040  00000000  00000000  000002e0  2**0
                   CONTENTS, READONLY, DEBUGGING
-  6 .debug_info   000005a6  00000000  00000000  0000032c  2**0
+  6 .debug_info   000005a6  00000000  00000000  00000320  2**0
                   CONTENTS, READONLY, DEBUGGING
-  7 .debug_abbrev 000004e5  00000000  00000000  000008d2  2**0
+  7 .debug_abbrev 000004e5  00000000  00000000  000008c6  2**0
                   CONTENTS, READONLY, DEBUGGING
-  8 .debug_line   0000039d  00000000  00000000  00000db7  2**0
+  8 .debug_line   00000397  00000000  00000000  00000dab  2**0
                   CONTENTS, READONLY, DEBUGGING
-  9 .debug_frame  000000a8  00000000  00000000  00001154  2**2
+  9 .debug_frame  000000b0  00000000  00000000  00001144  2**2
                   CONTENTS, READONLY, DEBUGGING
- 10 .debug_str    000002c2  00000000  00000000  000011fc  2**0
+ 10 .debug_str    000002c2  00000000  00000000  000011f4  2**0
                   CONTENTS, READONLY, DEBUGGING
- 11 .debug_loc    000000fd  00000000  00000000  000014be  2**0
+ 11 .debug_loc    00000117  00000000  00000000  000014b6  2**0
                   CONTENTS, READONLY, DEBUGGING
- 12 .debug_ranges 00000030  00000000  00000000  000015bb  2**0
+ 12 .debug_ranges 00000030  00000000  00000000  000015cd  2**0
                   CONTENTS, READONLY, DEBUGGING
 
 Disassembly of section .text:
@@ -36,8 +36,8 @@ Disassembly of section .text:
    0:	12 c0       	rjmp	.+36     	; 0x26 <__ctors_end>
    2:	21 c0       	rjmp	.+66     	; 0x46 <__bad_interrupt>
    4:	20 c0       	rjmp	.+64     	; 0x46 <__bad_interrupt>
-   6:	91 c0       	rjmp	.+290    	; 0x12a <__vector_3>
-   8:	9e c0       	rjmp	.+316    	; 0x146 <__vector_4>
+   6:	7d c0       	rjmp	.+250    	; 0x102 <__vector_3>
+   8:	99 c0       	rjmp	.+306    	; 0x13c <__vector_4>
    a:	1d c0       	rjmp	.+58     	; 0x46 <__bad_interrupt>
    c:	1d c0       	rjmp	.+58     	; 0x48 <__vector_6>
    e:	30 c0       	rjmp	.+96     	; 0x70 <__vector_7>
@@ -71,11 +71,11 @@ Disassembly of section .text:
   3a:	1d 92       	st	X+, r1
 
 0000003c <.do_clear_bss_start>:
-  3c:	a4 36       	cpi	r26, 0x64	; 100
+  3c:	a2 36       	cpi	r26, 0x62	; 98
   3e:	b2 07       	cpc	r27, r18
   40:	e1 f7       	brne	.-8      	; 0x3a <.do_clear_bss_loop>
-  42:	a9 d0       	rcall	.+338    	; 0x196 <main>
-  44:	e1 c0       	rjmp	.+450    	; 0x208 <_exit>
+  42:	a2 d0       	rcall	.+324    	; 0x188 <main>
+  44:	da c0       	rjmp	.+436    	; 0x1fa <_exit>
 
 00000046 <__bad_interrupt>:
   46:	dc cf       	rjmp	.-72     	; 0x0 <__vectors>
@@ -98,24 +98,22 @@ ISR(TIMER1_COMPA_vect){
   54:	85 b5       	in	r24, 0x25	; 37
   56:	88 7f       	andi	r24, 0xF8	; 248
   58:	85 bd       	out	0x25, r24	; 37
-		//disable PWM
-		//open all switches so motor coasts along
+		//turn off right NMOS
+		//PORTB |= (1<<PB0);
+			
+		//turn off PMOSes, turn on NMOSes so motor brakes?!
 		//turn off left PMOS
 		PORTB &= ~(1<<PB2);
   5a:	c2 98       	cbi	0x18, 2	; 24
-		//turn off left NMOS
-		PORTB |= (1<<PB1);
-  5c:	c1 9a       	sbi	0x18, 1	; 24
+		//turn on left NMOS
+		PORTB &= ~(1<<PB1);
+  5c:	c1 98       	cbi	0x18, 1	; 24
 		//turn off right PMOS
 		PORTD &= ~(1<<PD7);
   5e:	97 98       	cbi	0x12, 7	; 18
-		//turn off right NMOS
-		PORTB |= (1<<PB0);
-  60:	c0 9a       	sbi	0x18, 0	; 24
-		//turn off right PMOS
-		//PORTD &= ~(1<<PD7);
 		//turn on right NMOS
-		//PORTB &= ~(1<<PB0);
+		PORTB &= ~(1<<PB0);
+  60:	c0 98       	cbi	0x18, 0	; 24
 		//reset PWM timer counter
 		TCNT2 = 0;
   62:	14 bc       	out	0x24, r1	; 36
@@ -138,346 +136,360 @@ ISR(TIMER1_COMPB_vect){
   78:	11 24       	eor	r1, r1
   7a:	8f 93       	push	r24
   7c:	9f 93       	push	r25
-	if (!(t2)){
-  7e:	80 91 62 00 	lds	r24, 0x0062	; 0x800062 <t2>
-  82:	90 91 63 00 	lds	r25, 0x0063	; 0x800063 <t2+0x1>
-  86:	89 2b       	or	r24, r25
-  88:	e1 f4       	brne	.+56     	; 0xc2 <__vector_7+0x52>
-		//turn off timer1
-		TCCR1B &= ~((1<<CS12) | (1<<CS11) | (1<<CS10));
-  8a:	8e b5       	in	r24, 0x2e	; 46
-  8c:	88 7f       	andi	r24, 0xF8	; 248
-  8e:	8e bd       	out	0x2e, r24	; 46
-		//turn off PWM
-		TCCR2 &= ~((1<<CS22) | (1<<CS21) | (1<<CS20));
-  90:	85 b5       	in	r24, 0x25	; 37
-  92:	88 7f       	andi	r24, 0xF8	; 248
-  94:	85 bd       	out	0x25, r24	; 37
-		//reset timer1 counter
-		TCNT1 = 0;
-  96:	1d bc       	out	0x2d, r1	; 45
-  98:	1c bc       	out	0x2c, r1	; 44
-		//reset PWM timer counter
-		TCNT2 = 0;
-  9a:	14 bc       	out	0x24, r1	; 36
-		//turn on timer 1 again (prescaler /256)
 		TCCR1B |= (1<<CS12);
-  9c:	8e b5       	in	r24, 0x2e	; 46
-  9e:	84 60       	ori	r24, 0x04	; 4
-  a0:	8e bd       	out	0x2e, r24	; 46
 		TCCR1B &= ~((1<<CS11) | (1<<CS10));
-  a2:	8e b5       	in	r24, 0x2e	; 46
-  a4:	8c 7f       	andi	r24, 0xFC	; 252
-  a6:	8e bd       	out	0x2e, r24	; 46
-		//turn on PWM timer counter (prescaler /64)
-		//TCCR2 |= (1<<CS22);
-		//TCCR2 &= ~((1<<CS21) | (1<<CS20));
-		//turn on PWM timer counter (prescaler /256)
-		TCCR2 |= ((1<<CS22) | (1<<CS21));
-  a8:	85 b5       	in	r24, 0x25	; 37
-  aa:	86 60       	ori	r24, 0x06	; 6
-  ac:	85 bd       	out	0x25, r24	; 37
-		TCCR2 &= ~((1<<CS20));
-  ae:	85 b5       	in	r24, 0x25	; 37
-  b0:	8e 7f       	andi	r24, 0xFE	; 254
-  b2:	85 bd       	out	0x25, r24	; 37
-		//T time crossing has been handled, T/2 is next
-		t2 = 1;
-  b4:	81 e0       	ldi	r24, 0x01	; 1
-  b6:	90 e0       	ldi	r25, 0x00	; 0
-  b8:	90 93 63 00 	sts	0x0063, r25	; 0x800063 <t2+0x1>
-  bc:	80 93 62 00 	sts	0x0062, r24	; 0x800062 <t2>
-  c0:	19 c0       	rjmp	.+50     	; 0xf4 <__vector_7+0x84>
-	}
-	else{
-		//turn off timer1
-		TCCR1B &= ~((1<<CS12) | (1<<CS11) | (1<<CS10));
-  c2:	8e b5       	in	r24, 0x2e	; 46
-  c4:	88 7f       	andi	r24, 0xF8	; 248
-  c6:	8e bd       	out	0x2e, r24	; 46
-		//turn off PWM
-		TCCR2 &= ~((1<<CS22) | (1<<CS21) | (1<<CS20));
-  c8:	85 b5       	in	r24, 0x25	; 37
-  ca:	88 7f       	andi	r24, 0xF8	; 248
-  cc:	85 bd       	out	0x25, r24	; 37
-		//reset timer1 counter
-		TCNT1 = 0;
-  ce:	1d bc       	out	0x2d, r1	; 45
-  d0:	1c bc       	out	0x2c, r1	; 44
-		//reset PWM timer counter
-		TCNT2 = 0;
-  d2:	14 bc       	out	0x24, r1	; 36
-		//turn on timer 1 again (prescaler /256)
-		TCCR1B |= (1<<CS12);
-  d4:	8e b5       	in	r24, 0x2e	; 46
-  d6:	84 60       	ori	r24, 0x04	; 4
-  d8:	8e bd       	out	0x2e, r24	; 46
-		TCCR1B &= ~((1<<CS11) | (1<<CS10));
-  da:	8e b5       	in	r24, 0x2e	; 46
-  dc:	8c 7f       	andi	r24, 0xFC	; 252
-  de:	8e bd       	out	0x2e, r24	; 46
-		//turn on PWM timer counter (prescaler /64)
-		//TCCR2 |= (1<<CS22);
-		//TCCR2 &= ~((1<<CS21) | (1<<CS20));
-		//turn on PWM timer counter (prescaler /256)
-		TCCR2 |= ((1<<CS22) | (1<<CS21));
-  e0:	85 b5       	in	r24, 0x25	; 37
-  e2:	86 60       	ori	r24, 0x06	; 6
-  e4:	85 bd       	out	0x25, r24	; 37
-		TCCR2 &= ~((1<<CS20));
-  e6:	85 b5       	in	r24, 0x25	; 37
-  e8:	8e 7f       	andi	r24, 0xFE	; 254
-  ea:	85 bd       	out	0x25, r24	; 37
-		t2 = 0;
-  ec:	10 92 63 00 	sts	0x0063, r1	; 0x800063 <t2+0x1>
-  f0:	10 92 62 00 	sts	0x0062, r1	; 0x800062 <t2>
-	}
-	if (stop_counter == STOPCYCLE) stop_counter = 0;
-  f4:	80 91 60 00 	lds	r24, 0x0060	; 0x800060 <_edata>
-  f8:	90 91 61 00 	lds	r25, 0x0061	; 0x800061 <_edata+0x1>
-  fc:	c2 97       	sbiw	r24, 0x32	; 50
-  fe:	29 f4       	brne	.+10     	; 0x10a <__vector_7+0x9a>
- 100:	10 92 61 00 	sts	0x0061, r1	; 0x800061 <_edata+0x1>
- 104:	10 92 60 00 	sts	0x0060, r1	; 0x800060 <_edata>
- 108:	09 c0       	rjmp	.+18     	; 0x11c <__vector_7+0xac>
-	else ++stop_counter;
- 10a:	80 91 60 00 	lds	r24, 0x0060	; 0x800060 <_edata>
- 10e:	90 91 61 00 	lds	r25, 0x0061	; 0x800061 <_edata+0x1>
- 112:	01 96       	adiw	r24, 0x01	; 1
- 114:	90 93 61 00 	sts	0x0061, r25	; 0x800061 <_edata+0x1>
- 118:	80 93 60 00 	sts	0x0060, r24	; 0x800060 <_edata>
-}
- 11c:	9f 91       	pop	r25
- 11e:	8f 91       	pop	r24
- 120:	0f 90       	pop	r0
- 122:	0f be       	out	0x3f, r0	; 63
- 124:	0f 90       	pop	r0
- 126:	1f 90       	pop	r1
- 128:	18 95       	reti
+		stop_counter = 0;
+	}*/
 
-0000012a <__vector_3>:
+		if (t2){
+  7e:	80 91 60 00 	lds	r24, 0x0060	; 0x800060 <_edata>
+  82:	90 91 61 00 	lds	r25, 0x0061	; 0x800061 <_edata+0x1>
+  86:	89 2b       	or	r24, r25
+  88:	d1 f0       	breq	.+52     	; 0xbe <__vector_7+0x4e>
+			t2 = 0;
+  8a:	10 92 61 00 	sts	0x0061, r1	; 0x800061 <_edata+0x1>
+  8e:	10 92 60 00 	sts	0x0060, r1	; 0x800060 <_edata>
+			//turn off timer1
+			TCCR1B &= ~((1<<CS12) | (1<<CS11) | (1<<CS10));
+  92:	8e b5       	in	r24, 0x2e	; 46
+  94:	88 7f       	andi	r24, 0xF8	; 248
+  96:	8e bd       	out	0x2e, r24	; 46
+			//turn off PWM
+			TCCR2 &= ~((1<<CS22) | (1<<CS21) | (1<<CS20));
+  98:	85 b5       	in	r24, 0x25	; 37
+  9a:	88 7f       	andi	r24, 0xF8	; 248
+  9c:	85 bd       	out	0x25, r24	; 37
+			//reset timer1 counter
+			TCNT1 = 0;
+  9e:	1d bc       	out	0x2d, r1	; 45
+  a0:	1c bc       	out	0x2c, r1	; 44
+			//reset PWM timer counter
+			TCNT2 = 0;
+  a2:	14 bc       	out	0x24, r1	; 36
+			//turn on timer 1 again (prescaler /256)
+			TCCR1B |= (1<<CS12);
+  a4:	8e b5       	in	r24, 0x2e	; 46
+  a6:	84 60       	ori	r24, 0x04	; 4
+  a8:	8e bd       	out	0x2e, r24	; 46
+			TCCR1B &= ~((1<<CS11) | (1<<CS10));
+  aa:	8e b5       	in	r24, 0x2e	; 46
+  ac:	8c 7f       	andi	r24, 0xFC	; 252
+  ae:	8e bd       	out	0x2e, r24	; 46
+			//turn on PWM timer counter (prescaler /64)
+			//TCCR2 |= (1<<CS22);
+			//TCCR2 &= ~((1<<CS21) | (1<<CS20));
+			//turn on PWM timer counter (prescaler /256)
+			TCCR2 |= ((1<<CS22) | (1<<CS21));
+  b0:	85 b5       	in	r24, 0x25	; 37
+  b2:	86 60       	ori	r24, 0x06	; 6
+  b4:	85 bd       	out	0x25, r24	; 37
+			TCCR2 &= ~((1<<CS20));
+  b6:	85 b5       	in	r24, 0x25	; 37
+  b8:	8e 7f       	andi	r24, 0xFE	; 254
+  ba:	85 bd       	out	0x25, r24	; 37
+  bc:	1b c0       	rjmp	.+54     	; 0xf4 <__vector_7+0x84>
+			//T time crossing has been handled, T/2 is next
+		}
+		else{
+			t2 = 1;
+  be:	81 e0       	ldi	r24, 0x01	; 1
+  c0:	90 e0       	ldi	r25, 0x00	; 0
+  c2:	90 93 61 00 	sts	0x0061, r25	; 0x800061 <_edata+0x1>
+  c6:	80 93 60 00 	sts	0x0060, r24	; 0x800060 <_edata>
+			//turn off timer1
+			TCCR1B &= ~((1<<CS12) | (1<<CS11) | (1<<CS10));
+  ca:	8e b5       	in	r24, 0x2e	; 46
+  cc:	88 7f       	andi	r24, 0xF8	; 248
+  ce:	8e bd       	out	0x2e, r24	; 46
+			//turn off PWM
+			TCCR2 &= ~((1<<CS22) | (1<<CS21) | (1<<CS20));
+  d0:	85 b5       	in	r24, 0x25	; 37
+  d2:	88 7f       	andi	r24, 0xF8	; 248
+  d4:	85 bd       	out	0x25, r24	; 37
+			//reset timer1 counter
+			TCNT1 = 0;
+  d6:	1d bc       	out	0x2d, r1	; 45
+  d8:	1c bc       	out	0x2c, r1	; 44
+			//reset PWM timer counter
+			TCNT2 = 0;
+  da:	14 bc       	out	0x24, r1	; 36
+			//turn on timer 1 again (prescaler /256)
+			TCCR1B |= (1<<CS12);
+  dc:	8e b5       	in	r24, 0x2e	; 46
+  de:	84 60       	ori	r24, 0x04	; 4
+  e0:	8e bd       	out	0x2e, r24	; 46
+			TCCR1B &= ~((1<<CS11) | (1<<CS10));
+  e2:	8e b5       	in	r24, 0x2e	; 46
+  e4:	8c 7f       	andi	r24, 0xFC	; 252
+  e6:	8e bd       	out	0x2e, r24	; 46
+			//turn on PWM timer counter (prescaler /64)
+			//TCCR2 |= (1<<CS22);
+			//TCCR2 &= ~((1<<CS21) | (1<<CS20));
+			//turn on PWM timer counter (prescaler /256)
+			TCCR2 |= ((1<<CS22) | (1<<CS21));
+  e8:	85 b5       	in	r24, 0x25	; 37
+  ea:	86 60       	ori	r24, 0x06	; 6
+  ec:	85 bd       	out	0x25, r24	; 37
+			TCCR2 &= ~((1<<CS20));
+  ee:	85 b5       	in	r24, 0x25	; 37
+  f0:	8e 7f       	andi	r24, 0xFE	; 254
+  f2:	85 bd       	out	0x25, r24	; 37
+		}
+		//++stop_counter;
+		
+}
+  f4:	9f 91       	pop	r25
+  f6:	8f 91       	pop	r24
+  f8:	0f 90       	pop	r0
+  fa:	0f be       	out	0x3f, r0	; 63
+  fc:	0f 90       	pop	r0
+  fe:	1f 90       	pop	r1
+ 100:	18 95       	reti
+
+00000102 <__vector_3>:
 
 //PWM duty cycle expired, shut off signal
 ISR(TIMER2_COMP_vect){
- 12a:	1f 92       	push	r1
- 12c:	0f 92       	push	r0
- 12e:	0f b6       	in	r0, 0x3f	; 63
- 130:	0f 92       	push	r0
- 132:	11 24       	eor	r1, r1
-	//open all switches so motor coasts along
-	//turn off left PMOS
-	PORTB &= ~(1<<PB2);
- 134:	c2 98       	cbi	0x18, 2	; 24
-	//turn off left NMOS
-	PORTB |= (1<<PB1);
- 136:	c1 9a       	sbi	0x18, 1	; 24
-	//turn off right PMOS
-	PORTD &= ~(1<<PD7);
- 138:	97 98       	cbi	0x12, 7	; 18
-	//turn off right NMOS
-	PORTB |= (1<<PB0);
- 13a:	c0 9a       	sbi	0x18, 0	; 24
-	//PORTB &= ~(1<<PB1);
-	//turn off right PMOS
-	//PORTD &= ~(1<<PD7);
-	//turn on right NMOS
-	//PORTB &= ~(1<<PB0);
-}
- 13c:	0f 90       	pop	r0
- 13e:	0f be       	out	0x3f, r0	; 63
- 140:	0f 90       	pop	r0
- 142:	1f 90       	pop	r1
- 144:	18 95       	reti
-
-00000146 <__vector_4>:
-
-//PWM restarted, change switches according to current current direction
-ISR(TIMER2_OVF_vect){
- 146:	1f 92       	push	r1
- 148:	0f 92       	push	r0
- 14a:	0f b6       	in	r0, 0x3f	; 63
- 14c:	0f 92       	push	r0
- 14e:	11 24       	eor	r1, r1
- 150:	8f 93       	push	r24
- 152:	9f 93       	push	r25
-	if (stop_counter != STOPCYCLE){
- 154:	80 91 60 00 	lds	r24, 0x0060	; 0x800060 <_edata>
- 158:	90 91 61 00 	lds	r25, 0x0061	; 0x800061 <_edata+0x1>
- 15c:	c2 97       	sbiw	r24, 0x32	; 50
- 15e:	81 f0       	breq	.+32     	; 0x180 <__vector_4+0x3a>
-		if ((t2)){
- 160:	80 91 62 00 	lds	r24, 0x0062	; 0x800062 <t2>
- 164:	90 91 63 00 	lds	r25, 0x0063	; 0x800063 <t2+0x1>
- 168:	89 2b       	or	r24, r25
- 16a:	29 f0       	breq	.+10     	; 0x176 <__vector_4+0x30>
+ 102:	1f 92       	push	r1
+ 104:	0f 92       	push	r0
+ 106:	0f b6       	in	r0, 0x3f	; 63
+ 108:	0f 92       	push	r0
+ 10a:	11 24       	eor	r1, r1
+ 10c:	8f 93       	push	r24
+ 10e:	9f 93       	push	r25
+		//turn off right PMOS
+		PORTD &= ~(1<<PD7);
+		//turn off right NMOS
+		PORTB |= (1<<PB0);
+	}*/
+		if (t2){
+ 110:	80 91 60 00 	lds	r24, 0x0060	; 0x800060 <_edata>
+ 114:	90 91 61 00 	lds	r25, 0x0061	; 0x800061 <_edata+0x1>
+ 118:	89 2b       	or	r24, r25
+ 11a:	29 f0       	breq	.+10     	; 0x126 <__vector_3+0x24>
 			//right to left current
+			//turn off PMOSes, turn on right NMOS so motor brakes
 			//turn off left PMOS
 			PORTB &= ~(1<<PB2);
- 16c:	c2 98       	cbi	0x18, 2	; 24
-			//turn on left NMOS
-			PORTB &= ~(1<<PB1);
- 16e:	c1 98       	cbi	0x18, 1	; 24
-			//turn on right PMOS
-			PORTD |= (1<<PD7);
- 170:	97 9a       	sbi	0x12, 7	; 18
-			//turn off right NMOS
-			PORTB |= (1<<PB0);
- 172:	c0 9a       	sbi	0x18, 0	; 24
- 174:	09 c0       	rjmp	.+18     	; 0x188 <__vector_4+0x42>
+ 11c:	c2 98       	cbi	0x18, 2	; 24
+			//turn off left NMOS
+			PORTB |= (1<<PB1);
+ 11e:	c1 9a       	sbi	0x18, 1	; 24
+			//turn off right PMOS
+			PORTD &= ~(1<<PD7);
+ 120:	97 98       	cbi	0x12, 7	; 18
+			//turn on right NMOS
+			PORTB &= ~(1<<PB0);
+ 122:	c0 98       	cbi	0x18, 0	; 24
+ 124:	04 c0       	rjmp	.+8      	; 0x12e <__vector_3+0x2c>
 		}
 		else{
 			//left to right current
-			//turn on left PMOS
-			PORTB |= (1<<PB2);
- 176:	c2 9a       	sbi	0x18, 2	; 24
-			//turn off left NMOS
-			PORTB |= (1<<PB1);
- 178:	c1 9a       	sbi	0x18, 1	; 24
+			//turn off PMOSes, turn on left NMOS so motor brakes?!
+			//turn off left PMOS
+			PORTB &= ~(1<<PB2);
+ 126:	c2 98       	cbi	0x18, 2	; 24
+			//turn on left NMOS
+			PORTB &= ~(1<<PB1);
+ 128:	c1 98       	cbi	0x18, 1	; 24
 			//turn off right PMOS
 			PORTD &= ~(1<<PD7);
- 17a:	97 98       	cbi	0x12, 7	; 18
-			//turn on right NMOS
-			PORTB &= ~(1<<PB0);
- 17c:	c0 98       	cbi	0x18, 0	; 24
- 17e:	04 c0       	rjmp	.+8      	; 0x188 <__vector_4+0x42>
+ 12a:	97 98       	cbi	0x12, 7	; 18
+			//turn off right NMOS
+			PORTB |= (1<<PB0);
+ 12c:	c0 9a       	sbi	0x18, 0	; 24
 		}
-	}
-	else{
-		//open all switches so motor coasts along
+}
+ 12e:	9f 91       	pop	r25
+ 130:	8f 91       	pop	r24
+ 132:	0f 90       	pop	r0
+ 134:	0f be       	out	0x3f, r0	; 63
+ 136:	0f 90       	pop	r0
+ 138:	1f 90       	pop	r1
+ 13a:	18 95       	reti
+
+0000013c <__vector_4>:
+
+//PWM restarted, change switches according to current current direction
+ISR(TIMER2_OVF_vect){
+ 13c:	1f 92       	push	r1
+ 13e:	0f 92       	push	r0
+ 140:	0f b6       	in	r0, 0x3f	; 63
+ 142:	0f 92       	push	r0
+ 144:	11 24       	eor	r1, r1
+ 146:	8f 93       	push	r24
+ 148:	9f 93       	push	r25
+	//turn off PWM
+	TCCR2 &= ~((1<<CS22) | (1<<CS21) | (1<<CS20));
+ 14a:	85 b5       	in	r24, 0x25	; 37
+ 14c:	88 7f       	andi	r24, 0xF8	; 248
+ 14e:	85 bd       	out	0x25, r24	; 37
+	if (t2){
+ 150:	80 91 60 00 	lds	r24, 0x0060	; 0x800060 <_edata>
+ 154:	90 91 61 00 	lds	r25, 0x0061	; 0x800061 <_edata+0x1>
+ 158:	89 2b       	or	r24, r25
+ 15a:	29 f0       	breq	.+10     	; 0x166 <__vector_4+0x2a>
+		//right to left current
 		//turn off left PMOS
 		PORTB &= ~(1<<PB2);
- 180:	c2 98       	cbi	0x18, 2	; 24
-		//turn off left NMOS
-		PORTB |= (1<<PB1);
- 182:	c1 9a       	sbi	0x18, 1	; 24
-		//turn off right PMOS
-		PORTD &= ~(1<<PD7);
- 184:	97 98       	cbi	0x12, 7	; 18
+ 15c:	c2 98       	cbi	0x18, 2	; 24
+		//turn on left NMOS
+		PORTB &= ~(1<<PB1);
+ 15e:	c1 98       	cbi	0x18, 1	; 24
+		//turn on right PMOS
+		PORTD |= (1<<PD7);
+ 160:	97 9a       	sbi	0x12, 7	; 18
 		//turn off right NMOS
 		PORTB |= (1<<PB0);
- 186:	c0 9a       	sbi	0x18, 0	; 24
+ 162:	c0 9a       	sbi	0x18, 0	; 24
+ 164:	04 c0       	rjmp	.+8      	; 0x16e <__vector_4+0x32>
 	}
+	else{
+		//left to right current
+		//turn on left PMOS
+		PORTB |= (1<<PB2);
+ 166:	c2 9a       	sbi	0x18, 2	; 24
+		//turn off left NMOS
+		PORTB |= (1<<PB1);
+ 168:	c1 9a       	sbi	0x18, 1	; 24
+		//turn off right PMOS
+		PORTD &= ~(1<<PD7);
+ 16a:	97 98       	cbi	0x12, 7	; 18
+		//turn on right NMOS
+		PORTB &= ~(1<<PB0);
+ 16c:	c0 98       	cbi	0x18, 0	; 24
+	}
+	//turn on PWM timer counter (prescaler /256)
+	TCCR2 |= ((1<<CS22) | (1<<CS21));
+ 16e:	85 b5       	in	r24, 0x25	; 37
+ 170:	86 60       	ori	r24, 0x06	; 6
+ 172:	85 bd       	out	0x25, r24	; 37
+	TCCR2 &= ~((1<<CS20));
+ 174:	85 b5       	in	r24, 0x25	; 37
+ 176:	8e 7f       	andi	r24, 0xFE	; 254
+ 178:	85 bd       	out	0x25, r24	; 37
 }
- 188:	9f 91       	pop	r25
- 18a:	8f 91       	pop	r24
- 18c:	0f 90       	pop	r0
- 18e:	0f be       	out	0x3f, r0	; 63
- 190:	0f 90       	pop	r0
- 192:	1f 90       	pop	r1
- 194:	18 95       	reti
+ 17a:	9f 91       	pop	r25
+ 17c:	8f 91       	pop	r24
+ 17e:	0f 90       	pop	r0
+ 180:	0f be       	out	0x3f, r0	; 63
+ 182:	0f 90       	pop	r0
+ 184:	1f 90       	pop	r1
+ 186:	18 95       	reti
 
-00000196 <main>:
+00000188 <main>:
+
 
 int main(void)
 {
 	//set PWM ports as output
 	DDRB |= ((1<<PB2)|(1<<PB1)|(1<<PB0));
- 196:	87 b3       	in	r24, 0x17	; 23
- 198:	87 60       	ori	r24, 0x07	; 7
- 19a:	87 bb       	out	0x17, r24	; 23
+ 188:	87 b3       	in	r24, 0x17	; 23
+ 18a:	87 60       	ori	r24, 0x07	; 7
+ 18c:	87 bb       	out	0x17, r24	; 23
 	DDRD |= (1<<PD7);
- 19c:	8f 9a       	sbi	0x11, 7	; 17
+ 18e:	8f 9a       	sbi	0x11, 7	; 17
 	
 	//set normal timer mode
 	TCCR2 &= ~(1<<WGM20);
- 19e:	85 b5       	in	r24, 0x25	; 37
- 1a0:	8f 7b       	andi	r24, 0xBF	; 191
- 1a2:	85 bd       	out	0x25, r24	; 37
+ 190:	85 b5       	in	r24, 0x25	; 37
+ 192:	8f 7b       	andi	r24, 0xBF	; 191
+ 194:	85 bd       	out	0x25, r24	; 37
 	TCCR2 &= ~(1<<WGM21);
- 1a4:	85 b5       	in	r24, 0x25	; 37
- 1a6:	87 7f       	andi	r24, 0xF7	; 247
- 1a8:	85 bd       	out	0x25, r24	; 37
+ 196:	85 b5       	in	r24, 0x25	; 37
+ 198:	87 7f       	andi	r24, 0xF7	; 247
+ 19a:	85 bd       	out	0x25, r24	; 37
 	
 	//disconnect OC2 port
 	TCCR2 &= ~((1<<COM21) | (1<<COM20));
- 1aa:	85 b5       	in	r24, 0x25	; 37
- 1ac:	8f 7c       	andi	r24, 0xCF	; 207
- 1ae:	85 bd       	out	0x25, r24	; 37
+ 19c:	85 b5       	in	r24, 0x25	; 37
+ 19e:	8f 7c       	andi	r24, 0xCF	; 207
+ 1a0:	85 bd       	out	0x25, r24	; 37
 	
 	//set output compare value for timer 2 between 0-255 (OCR2/255 % duty cycle)
 	OCR2 = 255;
- 1b0:	8f ef       	ldi	r24, 0xFF	; 255
- 1b2:	83 bd       	out	0x23, r24	; 35
+ 1a2:	8f ef       	ldi	r24, 0xFF	; 255
+ 1a4:	83 bd       	out	0x23, r24	; 35
 	
 	//set prescaler of 64 (gives effective PWM frequency of 980Hz)
 	//TCCR2 |= (1<<CS22);
 	//TCCR2 &= ~((1<<CS21) | (1<<CS20));
 	//set prescaler of 256 (gives effective PWM frequency of 245Hz)
 	TCCR2 |= ((1<<CS22) | (1<<CS21));
- 1b4:	85 b5       	in	r24, 0x25	; 37
- 1b6:	86 60       	ori	r24, 0x06	; 6
- 1b8:	85 bd       	out	0x25, r24	; 37
+ 1a6:	85 b5       	in	r24, 0x25	; 37
+ 1a8:	86 60       	ori	r24, 0x06	; 6
+ 1aa:	85 bd       	out	0x25, r24	; 37
 	TCCR2 &= ~((1<<CS20));
- 1ba:	85 b5       	in	r24, 0x25	; 37
- 1bc:	8e 7f       	andi	r24, 0xFE	; 254
- 1be:	85 bd       	out	0x25, r24	; 37
+ 1ac:	85 b5       	in	r24, 0x25	; 37
+ 1ae:	8e 7f       	andi	r24, 0xFE	; 254
+ 1b0:	85 bd       	out	0x25, r24	; 37
 	
 	//turn off PMOSes, turn on NMOSes so motor brakes?!
 	//turn off left PMOS
 	PORTB &= ~(1<<PB2);
- 1c0:	c2 98       	cbi	0x18, 2	; 24
+ 1b2:	c2 98       	cbi	0x18, 2	; 24
 	//turn on left NMOS
 	PORTB &= ~(1<<PB1);
- 1c2:	c1 98       	cbi	0x18, 1	; 24
+ 1b4:	c1 98       	cbi	0x18, 1	; 24
 	//turn off right PMOS
 	PORTD &= ~(1<<PD7);
- 1c4:	97 98       	cbi	0x12, 7	; 18
+ 1b6:	97 98       	cbi	0x12, 7	; 18
 	//turn on right NMOS
 	PORTB &= ~(1<<PB0);
- 1c6:	c0 98       	cbi	0x18, 0	; 24
+ 1b8:	c0 98       	cbi	0x18, 0	; 24
 	
 	//set timer 1 to normal mode
 	TCCR1B &= ~((1<<WGM13) | (1<<WGM12));
- 1c8:	8e b5       	in	r24, 0x2e	; 46
- 1ca:	87 7e       	andi	r24, 0xE7	; 231
- 1cc:	8e bd       	out	0x2e, r24	; 46
+ 1ba:	8e b5       	in	r24, 0x2e	; 46
+ 1bc:	87 7e       	andi	r24, 0xE7	; 231
+ 1be:	8e bd       	out	0x2e, r24	; 46
 	TCCR1A &= ~((1<<WGM11) | (1<<WGM10));
- 1ce:	8f b5       	in	r24, 0x2f	; 47
- 1d0:	8c 7f       	andi	r24, 0xFC	; 252
- 1d2:	8f bd       	out	0x2f, r24	; 47
+ 1c0:	8f b5       	in	r24, 0x2f	; 47
+ 1c2:	8c 7f       	andi	r24, 0xFC	; 252
+ 1c4:	8f bd       	out	0x2f, r24	; 47
 	
 	//set prescaler to /256
 	TCCR1B |= (1<<CS12);
- 1d4:	8e b5       	in	r24, 0x2e	; 46
- 1d6:	84 60       	ori	r24, 0x04	; 4
- 1d8:	8e bd       	out	0x2e, r24	; 46
+ 1c6:	8e b5       	in	r24, 0x2e	; 46
+ 1c8:	84 60       	ori	r24, 0x04	; 4
+ 1ca:	8e bd       	out	0x2e, r24	; 46
 	TCCR1B &= ~((1<<CS11) | (1<<CS10));
- 1da:	8e b5       	in	r24, 0x2e	; 46
- 1dc:	8c 7f       	andi	r24, 0xFC	; 252
- 1de:	8e bd       	out	0x2e, r24	; 46
+ 1cc:	8e b5       	in	r24, 0x2e	; 46
+ 1ce:	8c 7f       	andi	r24, 0xFC	; 252
+ 1d0:	8e bd       	out	0x2e, r24	; 46
 	
 	//set timer 1 overflow A and B compare values
 	OCR1A = 1250; //for T/4
- 1e0:	82 ee       	ldi	r24, 0xE2	; 226
- 1e2:	94 e0       	ldi	r25, 0x04	; 4
- 1e4:	9b bd       	out	0x2b, r25	; 43
- 1e6:	8a bd       	out	0x2a, r24	; 42
+ 1d2:	82 ee       	ldi	r24, 0xE2	; 226
+ 1d4:	94 e0       	ldi	r25, 0x04	; 4
+ 1d6:	9b bd       	out	0x2b, r25	; 43
+ 1d8:	8a bd       	out	0x2a, r24	; 42
 	OCR1B = 2500; //for 12.5Hz resonant frequency (for T/2)
- 1e8:	84 ec       	ldi	r24, 0xC4	; 196
- 1ea:	99 e0       	ldi	r25, 0x09	; 9
- 1ec:	99 bd       	out	0x29, r25	; 41
- 1ee:	88 bd       	out	0x28, r24	; 40
+ 1da:	84 ec       	ldi	r24, 0xC4	; 196
+ 1dc:	99 e0       	ldi	r25, 0x09	; 9
+ 1de:	99 bd       	out	0x29, r25	; 41
+ 1e0:	88 bd       	out	0x28, r24	; 40
 	//enable timer 2 compare match interrupt and overflow interrupt
 	TIMSK |= ((1<<OCIE2) | (1<<TOIE2));
- 1f0:	89 b7       	in	r24, 0x39	; 57
- 1f2:	80 6c       	ori	r24, 0xC0	; 192
- 1f4:	89 bf       	out	0x39, r24	; 57
+ 1e2:	89 b7       	in	r24, 0x39	; 57
+ 1e4:	80 6c       	ori	r24, 0xC0	; 192
+ 1e6:	89 bf       	out	0x39, r24	; 57
 	//enable timer 1 compare match A and B interrupts
 	TIMSK |= ((1<<OCIE1A) | (1<<OCIE1B));
- 1f6:	89 b7       	in	r24, 0x39	; 57
- 1f8:	88 61       	ori	r24, 0x18	; 24
- 1fa:	89 bf       	out	0x39, r24	; 57
+ 1e8:	89 b7       	in	r24, 0x39	; 57
+ 1ea:	88 61       	ori	r24, 0x18	; 24
+ 1ec:	89 bf       	out	0x39, r24	; 57
 	//mark T PWM pulse to be handled next
 	t2 = 0;
- 1fc:	10 92 63 00 	sts	0x0063, r1	; 0x800063 <t2+0x1>
- 200:	10 92 62 00 	sts	0x0062, r1	; 0x800062 <t2>
+ 1ee:	10 92 61 00 	sts	0x0061, r1	; 0x800061 <_edata+0x1>
+ 1f2:	10 92 60 00 	sts	0x0060, r1	; 0x800060 <_edata>
 	//enable global interrupts
 	sei();
- 204:	78 94       	sei
- 206:	ff cf       	rjmp	.-2      	; 0x206 <main+0x70>
+ 1f6:	78 94       	sei
+ 1f8:	ff cf       	rjmp	.-2      	; 0x1f8 <main+0x70>
 
-00000208 <_exit>:
- 208:	f8 94       	cli
+000001fa <_exit>:
+ 1fa:	f8 94       	cli
 
-0000020a <__stop_program>:
- 20a:	ff cf       	rjmp	.-2      	; 0x20a <__stop_program>
+000001fc <__stop_program>:
+ 1fc:	ff cf       	rjmp	.-2      	; 0x1fc <__stop_program>
