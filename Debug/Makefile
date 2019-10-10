@@ -37,7 +37,9 @@ SUBDIRS :=
 
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS +=  \
-../main.c
+../interrupts.c \
+../main.c \
+../uart.c
 
 
 PREPROCESSING_SRCS += 
@@ -47,16 +49,24 @@ ASM_SRCS +=
 
 
 OBJS +=  \
-main.o
+interrupts.o \
+main.o \
+uart.o
 
 OBJS_AS_ARGS +=  \
-main.o
+interrupts.o \
+main.o \
+uart.o
 
 C_DEPS +=  \
-main.d
+interrupts.d \
+main.d \
+uart.d
 
 C_DEPS_AS_ARGS +=  \
-main.d
+interrupts.d \
+main.d \
+uart.d
 
 OUTPUT_FILE_PATH +=EE311.elf
 
@@ -72,6 +82,10 @@ LINKER_SCRIPT_DEP+=
 
 
 # AVR32/GNU C Compiler
+
+
+
+
 
 
 

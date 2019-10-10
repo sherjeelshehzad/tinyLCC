@@ -12,7 +12,6 @@
 //right NMOS = PB0
 
 #define F_CPU 16000000UL
-#define STOPCYCLE 100
 
 #include <stdio.h>
 #include <avr/io.h>
@@ -20,197 +19,8 @@
 #include <avr/interrupt.h>
 #include <util/delay.h> //header for delay function
 
-volatile unsigned int t2 = 0; //flag for if T/2 time crossing is next to be handled
-volatile unsigned int stop_counter = 0; //counter to stop PWM every STOPCYCLE/2 number of cycles
-//interrupt to handle T/4 or 3T/4 time crossing
-ISR(TIMER1_COMPA_vect){
-		//turn off PWM
-		TCCR2 &= ~((1<<CS22) | (1<<CS21) | (1<<CS20));
-		//disable PWM
-		//open all switches so motor coasts along
-		//turn off left PMOS
-		//PORTB &= ~(1<<PB2);
-		//turn off left NMOS
-		//PORTB |= (1<<PB1);
-		//turn off right PMOS
-		//PORTD &= ~(1<<PD7);
-		//turn off right NMOS
-		//PORTB |= (1<<PB0);
-			
-		//turn off PMOSes, turn on NMOSes so motor brakes?!
-		//turn off left PMOS
-		PORTB &= ~(1<<PB2);
-		//turn on left NMOS
-		PORTB &= ~(1<<PB1);
-		//turn off right PMOS
-		PORTD &= ~(1<<PD7);
-		//turn on right NMOS
-		PORTB &= ~(1<<PB0);
-		//reset PWM timer counter
-		TCNT2 = 0;
-}
-
-//interrupt to handle T or T/2 time crossing
-ISR(TIMER1_COMPB_vect){
-	
-	/*if (stop_counter == STOPCYCLE){
-		//turn off timer1
-		TCCR1B &= ~((1<<CS12) | (1<<CS11) | (1<<CS10));
-		//turn off PWM
-		TCCR2 &= ~((1<<CS22) | (1<<CS21) | (1<<CS20));
-		//reset timer1 counter
-		TCNT1 = 0;
-		//reset PWM timer counter
-		TCNT2 = 0;
-		//open all switches so motor coasts along
-		//turn off left PMOS
-		PORTB &= ~(1<<PB2);
-		//turn off left NMOS
-		PORTB |= (1<<PB1);
-		//turn off right PMOS
-		PORTD &= ~(1<<PD7);
-		//turn off right NMOS
-		PORTB |= (1<<PB0);
-		//turn on timer 1 again (prescaler /256)
-		TCCR1B |= (1<<CS12);
-		TCCR1B &= ~((1<<CS11) | (1<<CS10));
-		stop_counter = 0;
-	}*/
-
-		if (t2){
-			t2 = 0;
-			//turn off timer1
-			TCCR1B &= ~((1<<CS12) | (1<<CS11) | (1<<CS10));
-			//turn off PWM
-			TCCR2 &= ~((1<<CS22) | (1<<CS21) | (1<<CS20));
-			//reset timer1 counter
-			TCNT1 = 0;
-			//reset PWM timer counter
-			TCNT2 = 0;
-			//turn on timer 1 again (prescaler /256)
-			TCCR1B |= (1<<CS12);
-			TCCR1B &= ~((1<<CS11) | (1<<CS10));
-			//turn on PWM timer counter (prescaler /64)
-			//TCCR2 |= (1<<CS22);
-			//TCCR2 &= ~((1<<CS21) | (1<<CS20));
-			//turn on PWM timer counter (prescaler /256)
-			TCCR2 |= ((1<<CS22) | (1<<CS21));
-			TCCR2 &= ~((1<<CS20));
-			//T time crossing has been handled, T/2 is next
-		}
-		else{
-			t2 = 1;
-			//turn off timer1
-			TCCR1B &= ~((1<<CS12) | (1<<CS11) | (1<<CS10));
-			//turn off PWM
-			TCCR2 &= ~((1<<CS22) | (1<<CS21) | (1<<CS20));
-			//reset timer1 counter
-			TCNT1 = 0;
-			//reset PWM timer counter
-			TCNT2 = 0;
-			//turn on timer 1 again (prescaler /256)
-			TCCR1B |= (1<<CS12);
-			TCCR1B &= ~((1<<CS11) | (1<<CS10));
-			//turn on PWM timer counter (prescaler /64)
-			//TCCR2 |= (1<<CS22);
-			//TCCR2 &= ~((1<<CS21) | (1<<CS20));
-			//turn on PWM timer counter (prescaler /256)
-			TCCR2 |= ((1<<CS22) | (1<<CS21));
-			TCCR2 &= ~((1<<CS20));
-		}
-		//++stop_counter;
-		
-}
-
-//PWM duty cycle expired, shut off signal
-ISR(TIMER2_COMP_vect){
-	//open all switches so motor coasts along
-	//turn off left PMOS
-	//PORTB &= ~(1<<PB2);
-	//turn off left NMOS
-	//PORTB |= (1<<PB1);
-	//turn off right PMOS
-	//PORTD &= ~(1<<PD7);
-	//turn off right NMOS
-	//PORTB |= (1<<PB0);
-	
-	//turn off PMOSes, turn on NMOSes so motor brakes?!
-	//turn off left PMOS
-	//PORTB &= ~(1<<PB2);
-	//turn on left NMOS
-	//PORTB &= ~(1<<PB1);
-	//turn off right PMOS
-	//PORTD &= ~(1<<PD7);
-	//turn on right NMOS
-	//PORTB &= ~(1<<PB0);
-	/*if (stop_counter >= STOPCYCLE - 1){
-		//open all switches so motor coasts along
-		//turn off left PMOS
-		PORTB &= ~(1<<PB2);
-		//turn off left NMOS
-		PORTB |= (1<<PB1);
-		//turn off right PMOS
-		PORTD &= ~(1<<PD7);
-		//turn off right NMOS
-		PORTB |= (1<<PB0);
-	}*/
-		if (t2){
-			//right to left current
-			//turn off PMOSes, turn on right NMOS so motor brakes
-			//turn off left PMOS
-			PORTB &= ~(1<<PB2);
-			//turn off left NMOS
-			PORTB |= (1<<PB1);
-			//turn off right PMOS
-			PORTD &= ~(1<<PD7);
-			//turn on right NMOS
-			PORTB &= ~(1<<PB0);
-		}
-		else{
-			//left to right current
-			//turn off PMOSes, turn on left NMOS so motor brakes?!
-			//turn off left PMOS
-			PORTB &= ~(1<<PB2);
-			//turn on left NMOS
-			PORTB &= ~(1<<PB1);
-			//turn off right PMOS
-			PORTD &= ~(1<<PD7);
-			//turn off right NMOS
-			PORTB |= (1<<PB0);
-		}
-}
-
-//PWM restarted, change switches according to current current direction
-ISR(TIMER2_OVF_vect){
-	//turn off PWM
-	TCCR2 &= ~((1<<CS22) | (1<<CS21) | (1<<CS20));
-	if (t2){
-		//right to left current
-		//turn off left PMOS
-		PORTB &= ~(1<<PB2);
-		//turn on left NMOS
-		PORTB &= ~(1<<PB1);
-		//turn on right PMOS
-		PORTD |= (1<<PD7);
-		//turn off right NMOS
-		PORTB |= (1<<PB0);
-	}
-	else{
-		//left to right current
-		//turn on left PMOS
-		PORTB |= (1<<PB2);
-		//turn off left NMOS
-		PORTB |= (1<<PB1);
-		//turn off right PMOS
-		PORTD &= ~(1<<PD7);
-		//turn on right NMOS
-		PORTB &= ~(1<<PB0);
-	}
-	//turn on PWM timer counter (prescaler /256)
-	TCCR2 |= ((1<<CS22) | (1<<CS21));
-	TCCR2 &= ~((1<<CS20));
-}
-
+#include "uart.h"
+#include "interrupts.h"
 
 int main(void)
 {
@@ -266,6 +76,25 @@ int main(void)
 	sei();
     while (1)
     {
+		if (data_received == 1){//data has been received, parse json
+			const char left_bracket = '{';
+			char** splitstrings; //pointer to hold arrays of c-strings
+			unsigned int k = 1; //iterator for array of c-strings
+			
+			splitstrings = (char**)malloc(10*sizeof(char*));
+			
+			for (int j = 0; j < 10; ++j){
+				splitstrings[j] = (char*) malloc(10);
+			}
+			
+			splitstrings[0] = strtok(str_buffer,left_bracket);
+			
+			while (splitstrings[k-1] != NULL){
+				splitstrings[k] = strtok(NULL,left_bracket);
+				++k;
+			}
+			//DONT FORGET TO FREE MEMORY
+		}
     }
 }
 

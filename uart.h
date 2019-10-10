@@ -11,10 +11,13 @@
 
 #include <avr/io.h>
 
-#define UDRE (UCSR0A & (1<<UDRE0)) //check if data register is empty
+#define UDREMPTY (UCSRA & (1<<UDRE)) //check if data register is empty
+#define RXCOMP UCSRA & (1<<RXC) //check if RXC flag has been set
+#define ubrrvalue 103 //F_CPU/(16*BAUDRATE)-1 //Baud rate of 9600
 
 void usart_init(uint16_t ubrr);//initialise uart
 void usart_transmit(uint8_t data);//transmit character over uart
 void usart_transmit_string(char* stringtransmit);//transmit string
 
+volatile unsigned char received_char;
 #endif /* UART_H_ */
