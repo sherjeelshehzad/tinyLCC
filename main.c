@@ -18,12 +18,19 @@
 #include <avr/iom8.h>
 #include <avr/interrupt.h>
 #include <util/delay.h> //header for delay function
+#include <stdlib.h>
+#include <string.h>
 
 #include "uart.h"
 #include "interrupts.h"
 
+volatile unsigned int duty_request;
+
 int main(void)
 {
+	t2 = 0; //flag for if T/2 time crossing is next to be handled
+	stop_counter = 0; //counter to stop PWM every STOPCYCLE/2 number of cycles
+	data_received = 0; //set data received flag to 0 initially
 	//set PWM ports as output
 	DDRB |= ((1<<PB2)|(1<<PB1)|(1<<PB0));
 	DDRD |= (1<<PD7);
@@ -36,7 +43,8 @@ int main(void)
 	TCCR2 &= ~((1<<COM21) | (1<<COM20));
 	
 	//set output compare value for timer 2 between 0-255 (OCR2/255 % duty cycle)
-	OCR2 = 255;
+	duty_request = 128;
+	OCR2 = duty_request;
 	
 	//set prescaler of 64 (gives effective PWM frequency of 980Hz)
 	//TCCR2 |= (1<<CS22);
@@ -76,8 +84,10 @@ int main(void)
 	sei();
     while (1)
     {
-		if (data_received == 1){//data has been received, parse json
-			const char left_bracket = '{';
+		OCR2 = duty_request; //if the duty cycle has been changed, set it to the newly received value
+		//data has been received, parse json
+		if (data_received == 1){
+			const char left_bracket[2] = "{";
 			char** splitstrings; //pointer to hold arrays of c-strings
 			unsigned int k = 1; //iterator for array of c-strings
 			
@@ -93,7 +103,61 @@ int main(void)
 				splitstrings[k] = strtok(NULL,left_bracket);
 				++k;
 			}
+			
+			//extract and validate data from JSON
+			//check if id == 3
+			if (splitstrings[0][1] == '3'){
+				//if true, check mfc key
+				char check_mfc[4];
+				memcpy(check_mfc, &splitstrings[1][1], 3);
+				check_mfc[3] = '\0';
+				//check for valid MFC key
+				if (strcmp(check_mfc,"mfc") == 0){
+					//if true, check if req key is present
+					char check_req[4];
+					memcpy(check_req, &splitstrings[2][1], 3);
+					check_req[3] = '\0';
+					if (strcmp(check_req,"req") == 0){
+						//if true, check mass flow request value
+						char check_reqval[8];
+						memcpy(check_reqval, &splitstrings[2][8], 7);
+						//isolate value from key-value pair using comma as the delimiter
+						check_reqval[7] = '\0';
+						char check_val[4];
+						char* commapos = strchr(check_reqval, '"');
+						memcpy(check_val, check_reqval, (commapos - check_reqval));
+						check_val[commapos - check_reqval] = '\0';
+						if (check_val[0] != '\0'){
+							//if value was not empty
+							unsigned int notzero = 0;
+							//check if value is 0
+							//we need to check if we received a 0 since strtol() returns a 0 on invalid inputs as well
+							for (int n = 0; n < (commapos - check_reqval);++n){
+								if (check_val[n] != '0'){
+									notzero = 1;
+								}
+							}
+							if (notzero == 1){
+								int duty_received = strtol(check_val,NULL,10); //turn duty cycle into a base 10 value
+								if ((duty_received >= 0) && (duty_received <= 255)){
+									//if true, duty request value is valid
+									duty_request = duty_received;
+								}
+							}
+							else{
+								duty_request = 0; //stop the motor
+							}
+						}
+					}
+				}
+			}
+			//we have processed everything
+			//reenable receiver, free memory, and continue to next iteration
+			data_received = 0;
+			UCSRB |= (1<<RXEN);
 			//DONT FORGET TO FREE MEMORY
+			free(str_buffer);
+			free(splitstrings);
 		}
     }
 }

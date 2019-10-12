@@ -18,6 +18,7 @@
 void usart_init(uint16_t ubrr);//initialise uart
 void usart_transmit(uint8_t data);//transmit character over uart
 void usart_transmit_string(char* stringtransmit);//transmit string
+char uart_receive(); //receive a character over uart
 
-volatile unsigned char received_char;
+extern volatile unsigned char received_char;
 #endif /* UART_H_ */

@@ -9,6 +9,13 @@
 #ifndef INTERRUPTS_H_
 #define INTERRUPTS_H_
 
+#include "uart.h"
+#include <stdlib.h>
+#include <string.h>
+#include <avr/io.h>
+#include <avr/iom8.h>
+#include <avr/interrupt.h>
+
 #define STOPCYCLE 100
 
 ISR(TIMER1_COMPA_vect); //interrupt to handle T/4 or 3T/4 time crossing
@@ -22,7 +29,6 @@ volatile unsigned int data_received; //flag to indicate to main that data has be
 
 char* str_buffer; //string buffer to receive data
 
-
-extern volatile unsigned char received_char;
+volatile unsigned char received_char;
 
 #endif /* INTERRUPTS_H_ */

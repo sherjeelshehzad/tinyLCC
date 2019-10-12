@@ -6,11 +6,6 @@
  */ 
 
 #include "interrupts.h"
-#include "uart.h"
-
-t2 = 0; //flag for if T/2 time crossing is next to be handled
-stop_counter = 0; //counter to stop PWM every STOPCYCLE/2 number of cycles
-data_received = 0; //set data received flag to 0 initially
 
 ISR(USART_RXC_vect){
 	//dynamically allocate and reallocate space for string
@@ -21,9 +16,16 @@ ISR(USART_RXC_vect){
 	//only end receive when we receive a newline
 	while (*buffer_ptr != '\n'){
 		str_buffer = realloc(str_buffer,(++size)*sizeof(char));
-		strcat(str_buffer,uart_receive());
+		//make a null terminated string for strcat()
+		char uart_char[2];
+		uart_char[0] = uart_receive();
+		uart_char[1] = '\0';
+		strcat(str_buffer,uart_char);
 		++buffer_ptr;
 	}
+	//add null terminator to turn it into proper c-string
+	str_buffer = realloc(str_buffer,(++size)*sizeof(char));
+	*(++buffer_ptr) = '\0';
 	//turn off receiver to prevent any more interrupts before we have parsed the current data
 	UCSRB &= ~(1<<RXEN);
 	//set flag to indicate received data
