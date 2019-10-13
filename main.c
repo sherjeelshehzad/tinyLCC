@@ -24,7 +24,18 @@
 #include "uart.h"
 #include "interrupts.h"
 
-volatile unsigned int duty_request;
+//global variable section
+//left = left of the decimal point
+//right = right of the decimal point
+volatile unsigned int duty_request; //the currently requested duty cycle value
+volatile unsigned int transmit_data = 0;//indicate to the UART to transmit a json packet
+volatile unsigned int powerleft = 1;
+volatile unsigned int powerright = 38;
+volatile unsigned int freqleft = 12;
+volatile unsigned int freqright = 5;
+volatile unsigned int current = 1200;
+volatile unsigned int voltleft = 12;
+volatile unsigned int voltright = 21;
 
 int main(void)
 {
@@ -43,7 +54,7 @@ int main(void)
 	TCCR2 &= ~((1<<COM21) | (1<<COM20));
 	
 	//set output compare value for timer 2 between 0-255 (OCR2/255 % duty cycle)
-	duty_request = 128;
+	duty_request = 255;
 	OCR2 = duty_request;
 	
 	//set prescaler of 64 (gives effective PWM frequency of 980Hz)
@@ -80,13 +91,19 @@ int main(void)
 	TIMSK |= ((1<<OCIE1A) | (1<<OCIE1B));
 	//mark T PWM pulse to be handled next
 	t2 = 0;
+	
+	//enable and initialise UART
+	uart_init();
 	//enable global interrupts
 	sei();
     while (1)
     {
-		OCR2 = duty_request; //if the duty cycle has been changed, set it to the newly received value
-		//data has been received, parse json
-		if (data_received == 1){
+		//add gradual increase logic to couple with resonant frequency detection module
+		if (OCR2 != duty_request)
+			OCR2 = duty_request; //if the duty cycle has been changed, set it to the newly received value
+		
+		//if data has been received, parse json
+		if (data_received){
 			const char left_bracket[2] = "{";
 			char** splitstrings; //pointer to hold arrays of c-strings
 			unsigned int k = 1; //iterator for array of c-strings
@@ -121,7 +138,7 @@ int main(void)
 						//if true, check mass flow request value
 						char check_reqval[8];
 						memcpy(check_reqval, &splitstrings[2][8], 7);
-						//isolate value from key-value pair using comma as the delimiter
+						//isolate value from key-value pair using apostrophe as the delimiter
 						check_reqval[7] = '\0';
 						char check_val[4];
 						char* commapos = strchr(check_reqval, '"');
@@ -150,14 +167,29 @@ int main(void)
 						}
 					}
 				}
+				//we have processed everything
+				//free memory, and continue to next iteration
+				data_received = 0;
+				transmit_data = 1;
+				//DONT FORGET TO FREE MEMORY
+				free(str_buffer);
+				free(splitstrings);
 			}
-			//we have processed everything
-			//reenable receiver, free memory, and continue to next iteration
-			data_received = 0;
-			UCSRB |= (1<<RXEN);
-			//DONT FORGET TO FREE MEMORY
-			free(str_buffer);
-			free(splitstrings);
+			
+			if (transmit_data){
+				//disable receiver while transmitting to avoid echo-back
+				UCSRB &= ~(1<<RXEN);
+				char transmit_buffer[150];
+				sprintf(transmit_buffer, "{\n%3s\"3\":\n%3s{\n%7s\"mfc\":\n%7s{\n%11s\"req\": \"%3d\",\n%11s\"cur\": \"%3d\"\n%7s},\n%7s\"ver\": \"1.0.0\",\n%7s\"param\":\n%7s{\n%11s\"pwr\":  \"%d.%dW\",\n%11s\"freq\": \"%d.%dHz\",\n%11s\"curr\": \"%dmA\",\n%11s\"volt\": \"%d.%dV\",\n%7s}\n%3s}\n}", "", "", "", "", "", duty_request, "", OCR2, "", "", "", "", "", powerleft, powerright, "", freqleft, freqright, "", current, "", voltleft, voltright, "", "");
+				//TODO: add code to detect and report errors/error messages
+				//TODO: also add code to re-transmit errors if detected
+				uart_transmit_string(transmit_buffer);
+				//wait for last transmission to fully complete
+				while (UDREMPTY == 0);
+				//reenable receiver after transmission is complete
+				UCSRB |= (1<<RXEN);
+				transmit_data = 0;
+			}
 		}
     }
 }

@@ -14,7 +14,7 @@ ISR(USART_RXC_vect){
 	int size = 1;
 	*str_buffer = uart_receive();
 	//only end receive when we receive a newline
-	while (*buffer_ptr != '\n'){
+	while ((*buffer_ptr != '\n') || (*buffer_ptr != '\r')){
 		str_buffer = realloc(str_buffer,(++size)*sizeof(char));
 		//make a null terminated string for strcat()
 		char uart_char[2];
@@ -49,13 +49,39 @@ ISR(TIMER1_COMPA_vect){
 			
 		//turn off PMOSes, turn on NMOSes so motor brakes?!
 		//turn off left PMOS
-		PORTB &= ~(1<<PB2);
+		//PORTB &= ~(1<<PB2);
 		//turn on left NMOS
-		PORTB &= ~(1<<PB1);
+		//PORTB &= ~(1<<PB1);
 		//turn off right PMOS
-		PORTD &= ~(1<<PD7);
+		//PORTD &= ~(1<<PD7);
 		//turn on right NMOS
-		PORTB &= ~(1<<PB0);
+		//PORTB &= ~(1<<PB0);
+		
+		if (!t2){
+			//left to right current
+			//turn off PMOSes, turn on left NMOS so motor generates back emf
+			//turn off left PMOS
+			PORTB &= ~(1<<PB2);
+			//turn on left NMOS
+			PORTB &= ~(1<<PB1);
+			//turn off right PMOS
+			PORTD &= ~(1<<PD7);
+			//turn off right NMOS
+			PORTB |= (1<<PB0);
+		}
+		else{
+			//right to left current
+			//turn off PMOSes, turn on right NMOS so motor generates back emf
+			//turn off left PMOS
+			PORTB &= ~(1<<PB2);
+			//turn on left NMOS
+			PORTB |= (1<<PB1);
+			//turn off right PMOS
+			PORTD &= ~(1<<PD7);
+			//turn off right NMOS
+			PORTB &= ~(1<<PB0);
+		}
+			
 		//reset PWM timer counter
 		TCNT2 = 0;
 }
@@ -153,6 +179,7 @@ ISR(TIMER2_COMP_vect){
 	//PORTD &= ~(1<<PD7);
 	//turn on right NMOS
 	//PORTB &= ~(1<<PB0);
+	
 	/*if (stop_counter >= STOPCYCLE - 1){
 		//open all switches so motor coasts along
 		//turn off left PMOS
@@ -164,30 +191,30 @@ ISR(TIMER2_COMP_vect){
 		//turn off right NMOS
 		PORTB |= (1<<PB0);
 	}*/
-		if (t2){
-			//right to left current
-			//turn off PMOSes, turn on right NMOS so motor brakes
-			//turn off left PMOS
-			PORTB &= ~(1<<PB2);
-			//turn off left NMOS
-			PORTB |= (1<<PB1);
-			//turn off right PMOS
-			PORTD &= ~(1<<PD7);
-			//turn on right NMOS
-			PORTB &= ~(1<<PB0);
-		}
-		else{
-			//left to right current
-			//turn off PMOSes, turn on left NMOS so motor brakes?!
-			//turn off left PMOS
-			PORTB &= ~(1<<PB2);
-			//turn on left NMOS
-			PORTB &= ~(1<<PB1);
-			//turn off right PMOS
-			PORTD &= ~(1<<PD7);
-			//turn off right NMOS
-			PORTB |= (1<<PB0);
-		}
+	if (t2){
+		//right to left current
+		//turn off PMOSes, turn on left NMOS so motor brakes
+		//turn off left PMOS
+		PORTB &= ~(1<<PB2);
+		//turn on left NMOS
+		PORTB &= ~(1<<PB1);
+		//turn off right PMOS
+		PORTD &= ~(1<<PD7);
+		//turn off right NMOS
+		PORTB |= (1<<PB0);
+	}
+	else{
+		//left to right current
+		//turn off PMOSes, turn on right NMOS so motor brakes?!
+		//turn off left PMOS
+		PORTB &= ~(1<<PB2);
+		//turn on left NMOS
+		PORTB |= (1<<PB1);
+		//turn off right PMOS
+		PORTD &= ~(1<<PD7);
+		//turn off right NMOS
+		PORTB &= ~(1<<PB0);
+	}
 }
 
 //PWM restarted, change switches according to current current direction

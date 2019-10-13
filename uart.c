@@ -7,7 +7,7 @@
 
 #include "uart.h"
 
-void uart_init(uint16_t ubrr){
+void uart_init(){
 	UCSRB |= ((1<<TXEN)|(1<<RXEN)); //set transmit and receive bit
 	UCSRB |= (1<<RXCIE);
 	UBRRH = (ubrrvalue >> 8); //load baud rate register with calculated value
@@ -20,7 +20,7 @@ void uart_init(uint16_t ubrr){
 //Transmitter
 void uart_transmit_string(char* stringtransmit){
 	while (*stringtransmit != 0x00){
-		usart_transmit(*stringtransmit);
+		uart_transmit(*stringtransmit);
 		stringtransmit++;
 	}
 }
