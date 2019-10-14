@@ -34,9 +34,9 @@ ISR(USART_RXC_vect){
 
 //interrupt to handle T/4 or 3T/4 time crossing
 ISR(TIMER1_COMPA_vect){
-		//turn off PWM
+		//turn off PWM timer
 		TCCR2 &= ~((1<<CS22) | (1<<CS21) | (1<<CS20));
-		//disable PWM
+		
 		//open all switches so motor coasts along
 		//turn off left PMOS
 		//PORTB &= ~(1<<PB2);
@@ -57,8 +57,15 @@ ISR(TIMER1_COMPA_vect){
 		//turn on right NMOS
 		//PORTB &= ~(1<<PB0);
 		
+		//indicate that RHS/LHS voltage are both off
+		voltage_right_on = 0;
+		voltage_left_on = 0;
+		
+		//since we have stopped pulsing PWM, stop reading current ADC
+		readadci = 0;
+		//disable PWM signals
 		if (!t2){
-			//left to right current
+			//right to left current
 			//turn off PMOSes, turn on left NMOS so motor generates back emf
 			//turn off left PMOS
 			PORTB &= ~(1<<PB2);
@@ -68,18 +75,24 @@ ISR(TIMER1_COMPA_vect){
 			PORTD &= ~(1<<PD7);
 			//turn off right NMOS
 			PORTB |= (1<<PB0);
+			//indicate that we are ready to start reading motor LHS back emf
+			readadc = 1;
+			readadcmotorleft = 1;
 		}
 		else{
-			//right to left current
+			//left to right current
 			//turn off PMOSes, turn on right NMOS so motor generates back emf
 			//turn off left PMOS
 			PORTB &= ~(1<<PB2);
-			//turn on left NMOS
+			//turn off left NMOS
 			PORTB |= (1<<PB1);
 			//turn off right PMOS
 			PORTD &= ~(1<<PD7);
-			//turn off right NMOS
+			//turn on right NMOS
 			PORTB &= ~(1<<PB0);
+			//indicate that we are ready to start reading motor RHS back emf
+			readadc = 1;
+			readadcmotorright = 1;
 		}
 			
 		//reset PWM timer counter
@@ -114,6 +127,7 @@ ISR(TIMER1_COMPB_vect){
 	}*/
 
 		if (t2){
+			//T time crossing has been handled, T/2 is next
 			t2 = 0;
 			//turn off timer1
 			TCCR1B &= ~((1<<CS12) | (1<<CS11) | (1<<CS10));
@@ -126,13 +140,45 @@ ISR(TIMER1_COMPB_vect){
 			//turn on timer 1 again (prescaler /256)
 			TCCR1B |= (1<<CS12);
 			TCCR1B &= ~((1<<CS11) | (1<<CS10));
-			//turn on PWM timer counter (prescaler /64)
-			//TCCR2 |= (1<<CS22);
-			//TCCR2 &= ~((1<<CS21) | (1<<CS20));
+			//turn on PWM signals
+			if (t2){
+				//right to left current
+				//turn off left PMOS
+				PORTB &= ~(1<<PB2);
+				//turn on left NMOS
+				PORTB &= ~(1<<PB1);
+				//turn on right PMOS
+				PORTD |= (1<<PD7);
+				//turn off right NMOS
+				PORTB |= (1<<PB0);
+				//indicate that we are ready to read adc from motor RHS to measure voltage and current
+				readadc = 1;
+				readadcv = 1;
+				readadci = 1;
+				//indicate that RHS voltage is on
+				voltage_right_on = 1;
+			}
+			else{
+				//left to right current
+				//turn on left PMOS
+				PORTB |= (1<<PB2);
+				//turn off left NMOS
+				PORTB |= (1<<PB1);
+				//turn off right PMOS
+				PORTD &= ~(1<<PD7);
+				//turn on right NMOS
+				PORTB &= ~(1<<PB0);
+				//indicate that we are ready to read adc from motor LHS to measure voltage and current
+				readadc = 1;
+				readadcv = 1;
+				readadci = 1;
+				//indicate that LHS voltage is on
+				voltage_left_on = 1;
+			}
 			//turn on PWM timer counter (prescaler /256)
 			TCCR2 |= ((1<<CS22) | (1<<CS21));
 			TCCR2 &= ~((1<<CS20));
-			//T time crossing has been handled, T/2 is next
+			
 		}
 		else{
 			t2 = 1;
@@ -148,17 +194,51 @@ ISR(TIMER1_COMPB_vect){
 			TCCR1B |= (1<<CS12);
 			TCCR1B &= ~((1<<CS11) | (1<<CS10));
 			//turn on PWM timer counter (prescaler /64)
-			//TCCR2 |= (1<<CS22);
-			//TCCR2 &= ~((1<<CS21) | (1<<CS20));
+			//turn on PWM signals
+			if (t2){
+				//right to left current
+				//turn off left PMOS
+				PORTB &= ~(1<<PB2);
+				//turn on left NMOS
+				PORTB &= ~(1<<PB1);
+				//turn on right PMOS
+				PORTD |= (1<<PD7);
+				//turn off right NMOS
+				PORTB |= (1<<PB0);
+				//indicate that we are ready to read adc from motor RHS to measure voltage and current
+				readadc = 1;
+				readadcv = 1;
+				readadci = 1;
+				//indicate that RHS voltage is on
+				voltage_right_on = 1;
+			}
+			else{
+				//left to right current
+				//turn on left PMOS
+				PORTB |= (1<<PB2);
+				//turn off left NMOS
+				PORTB |= (1<<PB1);
+				//turn off right PMOS
+				PORTD &= ~(1<<PD7);
+				//turn on right NMOS
+				PORTB &= ~(1<<PB0);
+				//indicate that we are ready to read adc from motor LHS to measure voltage and current
+				readadc = 1;
+				readadcv = 1;
+				readadci = 1;
+				//indicate that LHS voltage is on
+				voltage_left_on = 1;
+			}
 			//turn on PWM timer counter (prescaler /256)
 			TCCR2 |= ((1<<CS22) | (1<<CS21));
 			TCCR2 &= ~((1<<CS20));
+			
 		}
 		//++stop_counter;
 		
 }
 
-//PWM duty cycle expired, shut off signal
+//PWM duty cycle expired, shut off PWM signals
 ISR(TIMER2_COMP_vect){
 	//open all switches so motor coasts along
 	//turn off left PMOS
@@ -191,6 +271,9 @@ ISR(TIMER2_COMP_vect){
 		//turn off right NMOS
 		PORTB |= (1<<PB0);
 	}*/
+	//turn off PWM
+	TCCR2 &= ~((1<<CS22) | (1<<CS21) | (1<<CS20));
+	
 	if (t2){
 		//right to left current
 		//turn off PMOSes, turn on left NMOS so motor brakes
@@ -202,25 +285,33 @@ ISR(TIMER2_COMP_vect){
 		PORTD &= ~(1<<PD7);
 		//turn off right NMOS
 		PORTB |= (1<<PB0);
+		//indicate that RHS voltage is off
+		voltage_right_on = 0;
 	}
 	else{
 		//left to right current
 		//turn off PMOSes, turn on right NMOS so motor brakes?!
 		//turn off left PMOS
 		PORTB &= ~(1<<PB2);
-		//turn on left NMOS
+		//turn off left NMOS
 		PORTB |= (1<<PB1);
 		//turn off right PMOS
 		PORTD &= ~(1<<PD7);
-		//turn off right NMOS
+		//turn on right NMOS
 		PORTB &= ~(1<<PB0);
+		//indicate that LHS voltage is off
+		voltage_left_on = 0;
 	}
+	//turn on PWM timer counter (prescaler /256)
+	TCCR2 |= ((1<<CS22) | (1<<CS21));
+	TCCR2 &= ~((1<<CS20));
 }
 
 //PWM restarted, change switches according to current current direction
 ISR(TIMER2_OVF_vect){
 	//turn off PWM
 	TCCR2 &= ~((1<<CS22) | (1<<CS21) | (1<<CS20));
+	TCCR2 = 0;
 	if (t2){
 		//right to left current
 		//turn off left PMOS
@@ -231,6 +322,8 @@ ISR(TIMER2_OVF_vect){
 		PORTD |= (1<<PD7);
 		//turn off right NMOS
 		PORTB |= (1<<PB0);
+		//indicate that RHS voltage is on
+		voltage_right_on = 1;
 	}
 	else{
 		//left to right current
@@ -242,6 +335,8 @@ ISR(TIMER2_OVF_vect){
 		PORTD &= ~(1<<PD7);
 		//turn on right NMOS
 		PORTB &= ~(1<<PB0);
+		//indicate that LHS voltage is on
+		voltage_left_on = 1;
 	}
 	//turn on PWM timer counter (prescaler /256)
 	TCCR2 |= ((1<<CS22) | (1<<CS21));

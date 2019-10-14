@@ -12,6 +12,7 @@
 //right NMOS = PB0
 
 #define F_CPU 16000000UL
+#define NUMSAMPLESI 100
 
 #include <stdio.h>
 #include <avr/io.h>
@@ -28,7 +29,7 @@
 //left = left of the decimal point
 //right = right of the decimal point
 volatile unsigned int duty_request; //the currently requested duty cycle value
-volatile unsigned int transmit_data = 0;//indicate to the UART to transmit a json packet
+volatile unsigned int transmit_data = 0; //indicate to the UART to transmit a json packet
 volatile unsigned int powerleft = 1;
 volatile unsigned int powerright = 38;
 volatile unsigned int freqleft = 12;
@@ -36,12 +37,18 @@ volatile unsigned int freqright = 5;
 volatile unsigned int current = 1200;
 volatile unsigned int voltleft = 12;
 volatile unsigned int voltright = 21;
+volatile unsigned int resonant_done = 1;
+volatile unsigned int current_i = 0;
 
 int main(void)
 {
 	t2 = 0; //flag for if T/2 time crossing is next to be handled
 	stop_counter = 0; //counter to stop PWM every STOPCYCLE/2 number of cycles
 	data_received = 0; //set data received flag to 0 initially
+	readadc = 0;
+	readadcv = 0;
+	readadci = 0;
+	voltagereference = 5000;
 	//set PWM ports as output
 	DDRB |= ((1<<PB2)|(1<<PB1)|(1<<PB0));
 	DDRD |= (1<<PD7);
@@ -54,7 +61,7 @@ int main(void)
 	TCCR2 &= ~((1<<COM21) | (1<<COM20));
 	
 	//set output compare value for timer 2 between 0-255 (OCR2/255 % duty cycle)
-	duty_request = 255;
+	duty_request = 128;
 	OCR2 = duty_request;
 	
 	//set prescaler of 64 (gives effective PWM frequency of 980Hz)
@@ -83,8 +90,8 @@ int main(void)
 	TCCR1B &= ~((1<<CS11) | (1<<CS10));
 	
 	//set timer 1 overflow A and B compare values
-	OCR1A = 1250; //for T/4
-	OCR1B = 2500; //for 12.5Hz resonant frequency (for T/2)
+	OCR1A = 1150; //for T/4
+	OCR1B = 2300; //for 12.5Hz resonant frequency (for T/2)
 	//enable timer 2 compare match interrupt and overflow interrupt
 	TIMSK |= ((1<<OCIE2) | (1<<TOIE2));
 	//enable timer 1 compare match A and B interrupts
@@ -94,6 +101,8 @@ int main(void)
 	
 	//enable and initialise UART
 	uart_init();
+	//enable and initialise ADC
+	//adc_init();
 	//enable global interrupts
 	sei();
     while (1)
@@ -167,30 +176,80 @@ int main(void)
 						}
 					}
 				}
-				//we have processed everything
-				//free memory, and continue to next iteration
-				data_received = 0;
-				transmit_data = 1;
-				//DONT FORGET TO FREE MEMORY
-				free(str_buffer);
-				free(splitstrings);
 			}
-			
-			if (transmit_data){
-				//disable receiver while transmitting to avoid echo-back
-				UCSRB &= ~(1<<RXEN);
-				char transmit_buffer[150];
-				sprintf(transmit_buffer, "{\n%3s\"3\":\n%3s{\n%7s\"mfc\":\n%7s{\n%11s\"req\": \"%3d\",\n%11s\"cur\": \"%3d\"\n%7s},\n%7s\"ver\": \"1.0.0\",\n%7s\"param\":\n%7s{\n%11s\"pwr\":  \"%d.%dW\",\n%11s\"freq\": \"%d.%dHz\",\n%11s\"curr\": \"%dmA\",\n%11s\"volt\": \"%d.%dV\",\n%7s}\n%3s}\n}", "", "", "", "", "", duty_request, "", OCR2, "", "", "", "", "", powerleft, powerright, "", freqleft, freqright, "", current, "", voltleft, voltright, "", "");
-				//TODO: add code to detect and report errors/error messages
-				//TODO: also add code to re-transmit errors if detected
-				uart_transmit_string(transmit_buffer);
-				//wait for last transmission to fully complete
-				while (UDREMPTY == 0);
-				//reenable receiver after transmission is complete
-				UCSRB |= (1<<RXEN);
-				transmit_data = 0;
+			//we have processed everything
+			//free memory, and continue to next iteration
+			data_received = 0;
+			transmit_data = 1;
+			//DONT FORGET TO FREE MEMORY
+			free(str_buffer);
+			free(splitstrings);
+		}
+		if (transmit_data){
+			//disable receiver while transmitting to avoid echo-back
+			UCSRB &= ~(1<<RXEN);
+			char transmit_buffer[200];
+			sprintf(transmit_buffer, "{\n%3s\"3\":\n%3s{\n%7s\"mfc\":\n%7s{\n%11s\"req\": \"%3d\",\n%11s\"cur\": \"%3d\"\n%7s},\n%7s\"ver\": \"1.0.0\",\n%7s\"param\":\n%7s{\n%11s\"pwr\":  \"%d.%dW\",\n%11s\"freq\": \"%d.%dHz\",\n%11s\"curr\": \"%dmA\",\n%11s\"volt\": \"%d.%dV\",\n%7s}\n%3s}\n}", "", "", "", "", "", duty_request, "", OCR2, "", "", "", "", "", powerleft, powerright, "", freqleft, freqright, "", current, "", voltleft, voltright, "", "");
+			//TODO: add code to detect and report errors/error messages
+			//TODO: also add code to re-transmit errors if detected
+			uart_transmit_string(transmit_buffer);
+			//wait for last transmission to fully complete
+			while (UDREMPTY == 0);
+			//reenable receiver after transmission is complete
+			UCSRB |= (1<<RXEN);
+			transmit_data = 0;
+		}
+		
+		//if adc has to be read
+		if (readadc){
+			if (readadcmotorleft){
+				resonant_done = 0;
+				//left side motor back emf is ready to be read, start timer and keep reading (and storing current and previous timer value each time) until max value stabilises
+				//possibly enable ADC interrupt and write a separate function to do non-blocking ADC converts and timer stores to not block other code 
+				//once max has stabilised and corresponding time has been obtained, calculate resonant frequency and adjust duty cycle on next while () iteration (if required) and do resonant_done = 1;
+			}
+			else if (readadcmotorright){
+				//left side motor back emf is ready to be read, start timer and keep reading (and storing current and previous timer value each time) until max value stabilises
+				//possibly enable ADC interrupt and write a separate function to do non-blocking ADC converts and timer stores to not block other code
+				//once max has stabilised and corresponding time has been obtained, calculate resonant frequency and adjust duty cycle on next while () iteration (if required) and do resonant_done = 1;
+			}
+			else{//resonant frequency calculation has priority, so do everything else in this else block
+				if (readadcv){
+					if (voltage_left_on){
+						//read motor_left for VCC
+					}
+					else if (voltage_right_on){
+						//read motor_right for VCC
+					}
+					//we have read voltage value (only need to do this once because assuming Vcc remains constant between PWM pulses), turn off flag
+					readadcv = 0;
+				}
+				if (readadci){
+					if (current_i != NUMSAMPLESI){
+						if ((voltage_left_on) || (voltage_right_on)){
+							//store current ADC samples into array, do NOT reset the index between sampling intervals so we can build up a full array
+							//also at the same time, multiply adc current value by the voltage value to get the instantaneous power array
+							//store only alternate samples (i % 25 == 0) (so we don't get more than ~100 samples for the whole of T/4)
+						}
+						else{
+							//if PWM is turned off, current is 0
+							//therefore store a 0 in the array (again, do not reset the index yet)
+							//but make sure to read still ADC to generate the correct number of samples (because we don't have a spare timer)
+							//also at the same time, multiply adc current value by the voltage value to get the instantaneous power array
+							//store only alternate samples (i % 25 == 0) (so we don't get more than ~100 samples)
+							
+						}
+						++current_i;
+					}
+				}
 			}
 		}
+		
+		//once we have done adc readings, do rms/power calcs and store the values in their proper places
+		
+		//voltage attenation = motor_left * 0.3704 + 220mV; //or motor_right * 0.3704 + 220mV;
+		//current attenuation = (i_sense_v * 4.8214) + 220mV
+		//i_sense_v = i*0.1, so i = i_sense_v * 10 (AMPS)
     }
 }
 

@@ -10,6 +10,7 @@
 #define INTERRUPTS_H_
 
 #include "uart.h"
+#include "adc.h"
 #include <stdlib.h>
 #include <string.h>
 #include <avr/io.h>
@@ -26,6 +27,9 @@ ISR(TIMER2_OVF_vect); //PWM restarted, change switches according to current curr
 volatile unsigned int t2; //flag to check if T/2 is next time crossing to be handled
 volatile unsigned int stop_counter; //flag to count cycles and see if we are going to stop the motor to measure backemf
 volatile unsigned int data_received; //flag to indicate to main that data has been recieved
+
+volatile unsigned int voltage_left_on; //flag to indicate if the left side of the motor is currently in the PWM ON state
+volatile unsigned int voltage_right_on; //flag to indicate if the right side of the motor is currently in the PWM ON state
 
 char* str_buffer; //string buffer to receive data
 
