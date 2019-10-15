@@ -32,6 +32,11 @@ ISR(USART_RXC_vect){
 	data_received = 1;
 }
 
+//interrupt to increment overflow counter
+ISR(TIMER0_OVF_vect){
+	++timer0_ovf_count;
+}
+
 //interrupt to handle T/4 or 3T/4 time crossing
 ISR(TIMER1_COMPA_vect){
 		//turn off PWM timer
@@ -78,6 +83,9 @@ ISR(TIMER1_COMPA_vect){
 			//indicate that we are ready to start reading motor LHS back emf
 			readadc = 1;
 			readadcmotorleft = 1;
+			backemffound = 0;
+			//reset backemf index
+			backemf_i = 0;
 		}
 		else{
 			//left to right current
@@ -93,8 +101,13 @@ ISR(TIMER1_COMPA_vect){
 			//indicate that we are ready to start reading motor RHS back emf
 			readadc = 1;
 			readadcmotorright = 1;
+			backemffound = 0;
+			//reset backemf index
+			backemf_i = 0;
 		}
-			
+		//turn on timer 0 with prescaler /256 to measure backemf time
+		TCCR0 |= ((1<<CS02));
+		TCCR0 &= ~((1<<CS01)|(1<<CS00));
 		//reset PWM timer counter
 		TCNT2 = 0;
 }
@@ -125,7 +138,12 @@ ISR(TIMER1_COMPB_vect){
 		TCCR1B &= ~((1<<CS11) | (1<<CS10));
 		stop_counter = 0;
 	}*/
-
+		//back emf pulse has expired (we are driving the motor now), stop reading the adc
+		readadcmotorleft = 0;
+		readadcmotorright = 0;
+		if (backemffound == 0){
+			backemftime += 10000; //add 10ms to back emf time (since we didn't find it previously, we must have driven the motor too fast)
+		}
 		if (t2){
 			//T time crossing has been handled, T/2 is next
 			t2 = 0;

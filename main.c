@@ -13,6 +13,11 @@
 
 #define F_CPU 16000000UL
 #define NUMSAMPLESI 100
+#define LHSVOLTAGECHANNEL 0
+#define RHSVOLTAGECHANNEL 1
+#define ISHIFTEDCHANNEL 2
+#define HALLSENSOR1CHANNEL 3
+#define HALLSENSOR2CHANNEL 4
 
 #include <stdio.h>
 #include <avr/io.h>
@@ -38,13 +43,26 @@ volatile unsigned int current = 1200;
 volatile unsigned int voltleft = 12;
 volatile unsigned int voltright = 21;
 volatile unsigned int resonant_done = 1;
-volatile unsigned int current_i = 0;
+volatile unsigned int voltagereading = 0;
+
+volatile unsigned int voltagereading = 0;
+volatile unsigned int currentreading = 0;
+volatile unsigned int backemfreading[3];
+volatile unsigned int backemfreadingindex = 0;
+volatile uint64_t backemftime = 0;
+volatile uint64_t backemffreq = 0;
+
+volatile unsigned int currentarray[100];
+volatile unsigned int powerarray[100];
 
 int main(void)
 {
 	t2 = 0; //flag for if T/2 time crossing is next to be handled
 	stop_counter = 0; //counter to stop PWM every STOPCYCLE/2 number of cycles
 	data_received = 0; //set data received flag to 0 initially
+	timer0_ovf_count = 0;//set timer0 overflow count to 0 initially
+	current_i = 0; //initialise current reading index
+	backemf_i = 0; //initialise backemf reading index
 	readadc = 0;
 	readadcv = 0;
 	readadci = 0;
@@ -96,6 +114,8 @@ int main(void)
 	TIMSK |= ((1<<OCIE2) | (1<<TOIE2));
 	//enable timer 1 compare match A and B interrupts
 	TIMSK |= ((1<<OCIE1A) | (1<<OCIE1B));
+	//enable timer 0 overflow interrupt
+	TIMSK |= (1<<TOIE0);
 	//mark T PWM pulse to be handled next
 	t2 = 0;
 	
@@ -203,12 +223,73 @@ int main(void)
 		//if adc has to be read
 		if (readadc){
 			if (readadcmotorleft){
-				resonant_done = 0;
+				//turn off timer 0
+				TCCR0 &= ~((1<<CS02)|(1<<CS01)|(1<<CS00));
+				//store time value for current sample
+				backemftime = (TCNT0 + (timer0_ovf_count*256))*16; //store time value in microseconds
+				//turn on timer 0 with prescaler /256 to keep measuring time
+				TCCR0 |= ((1<<CS02));
+				TCCR0 &= ~((1<<CS01)|(1<<CS00));
+				
+				unsigned int reading = adc_convert((adc_read(LHSVOLTAGECHANNEL)));
+				if (backemfreadingindex >= 3){
+					backemfreadingindex = 2;
+					backemfreading[0] = backemfreading[1];
+					backemfreading[1] = backemfreading[2];
+					backemfreading[2] = 0;
+				}
+				
+				backemfreading[backemfreadingindex] = reading;
+				if (backemfreadingindex < 3) ++backemfreadingindex;
+				
+				//if we have gathered at least 3 samples so far, start testing for maximum point reachage
+				if (backemfreadingindex == 3){
+					if (((backemfreading[2] - backemfreading[1]) < 50) && ((backemfreading[2] - backemfreading[0]) < 50) && ((backemfreading[1] - backemfreading[0]) < 50)){//hysteresis of 50mV
+						//we have found max, reset timer 0 count and overflow counter, and calculate frequency using stored time
+						backemffound = 1;
+						TCCR0 &= ~((1<<CS02)|(1<<CS01)|(1<<CS00));
+						TCNT0 = 0;
+						timer0_ovf_count = 0;
+						backemffreq = 1000000000/backemftime; //find backemf frequency in millihertz
+						readadcmotorleft = 0;//we have successfully found back-emf, no need to keep reading
+					}
+				}
+				
 				//left side motor back emf is ready to be read, start timer and keep reading (and storing current and previous timer value each time) until max value stabilises
 				//possibly enable ADC interrupt and write a separate function to do non-blocking ADC converts and timer stores to not block other code 
 				//once max has stabilised and corresponding time has been obtained, calculate resonant frequency and adjust duty cycle on next while () iteration (if required) and do resonant_done = 1;
 			}
 			else if (readadcmotorright){
+				//turn off timer 0
+				TCCR0 &= ~((1<<CS02)|(1<<CS01)|(1<<CS00));
+				//store time value for current sample
+				backemftime = (TCNT0 + (timer0_ovf_count*256))*16; //store time value in microseconds
+				//turn on timer 0 with prescaler /256 to keep measuring time
+				TCCR0 |= ((1<<CS02));
+				TCCR0 &= ~((1<<CS01)|(1<<CS00));
+				//read back emf voltage
+				unsigned int reading = adc_convert((adc_read(RHSVOLTAGECHANNEL)));
+				//back emf sample storage (to avoid buffer overflow)
+				if (backemfreadingindex >= 3){
+					backemfreadingindex = 2;
+					backemfreading[0] = backemfreading[1];
+					backemfreading[1] = backemfreading[2];
+					backemfreading[2] = 0;
+				}
+				backemfreading[backemfreadingindex] = reading;
+				if (backemfreadingindex < 3) ++backemfreadingindex;
+								
+				//if we have gathered at least 3 samples so far, start testing for maximum point reachage
+				if (backemfreadingindex == 3){
+					if (((backemfreading[2] - backemfreading[1]) < 50) && ((backemfreading[2] - backemfreading[0]) < 50) && ((backemfreading[1] - backemfreading[0]) < 50)){//hysteresis of 50mV
+						//we have found max, reset timer 0 count and overflow counter, and calculate frequency using stored time
+						TCCR0 &= ~((1<<CS02)|(1<<CS01)|(1<<CS00));
+						TCNT0 = 0;
+						timer0_ovf_count = 0;
+						backemffreq = 1000000000/backemftime; //find backemf frequency in millihertz
+						readadcmotorright = 0;//we have successfully found back-emf, no need to keep reading
+					}
+				}
 				//left side motor back emf is ready to be read, start timer and keep reading (and storing current and previous timer value each time) until max value stabilises
 				//possibly enable ADC interrupt and write a separate function to do non-blocking ADC converts and timer stores to not block other code
 				//once max has stabilised and corresponding time has been obtained, calculate resonant frequency and adjust duty cycle on next while () iteration (if required) and do resonant_done = 1;
@@ -217,11 +298,15 @@ int main(void)
 				if (readadcv){
 					if (voltage_left_on){
 						//read motor_left for VCC
+						unsigned int reading = adc_convert(adc_read(LHSVOLTAGECHANNEL));
+						voltagereading = (reading - 220)*2.6997; //store actual voltage value
 					}
 					else if (voltage_right_on){
 						//read motor_right for VCC
+						unsigned int reading = adc_convert(adc_read(RHSVOLTAGECHANNEL));
+						voltagereading = (reading - 220)*2.6997; //store actual voltage value
 					}
-					//we have read voltage value (only need to do this once because assuming Vcc remains constant between PWM pulses), turn off flag
+					//we have read voltage value (only need to do this once because we are assuming Vcc remains constant between PWM pulses), turn off voltage reading flag
 					readadcv = 0;
 				}
 				if (readadci){
@@ -229,14 +314,15 @@ int main(void)
 						if ((voltage_left_on) || (voltage_right_on)){
 							//store current ADC samples into array, do NOT reset the index between sampling intervals so we can build up a full array
 							//also at the same time, multiply adc current value by the voltage value to get the instantaneous power array
-							//store only alternate samples (i % 25 == 0) (so we don't get more than ~100 samples for the whole of T/4)
+							//store only alternate samples (i % 26 == 0) (so we don't get more than ~100 samples for the whole of T/4)
+							
 						}
 						else{
 							//if PWM is turned off, current is 0
 							//therefore store a 0 in the array (again, do not reset the index yet)
 							//but make sure to read still ADC to generate the correct number of samples (because we don't have a spare timer)
 							//also at the same time, multiply adc current value by the voltage value to get the instantaneous power array
-							//store only alternate samples (i % 25 == 0) (so we don't get more than ~100 samples)
+							//store only alternate samples (every 25th sample using (i % 26 == 0)) (so we don't get more than ~100 samples)
 							
 						}
 						++current_i;
@@ -246,8 +332,10 @@ int main(void)
 		}
 		
 		//once we have done adc readings, do rms/power calcs and store the values in their proper places
+		//TODO: add driving frequency adjustment here
 		
 		//voltage attenation = motor_left * 0.3704 + 220mV; //or motor_right * 0.3704 + 220mV;
+		//therefore motor_left = (lhs_voltage - 220mV) * 2.6997
 		//current attenuation = (i_sense_v * 4.8214) + 220mV
 		//i_sense_v = i*0.1, so i = i_sense_v * 10 (AMPS)
     }
