@@ -25,16 +25,9 @@ uint32_t adc_convert(uint16_t rawvalue){
 	return (uint32_t)((uint32_t)rawvalue*voltagereference/1024);
 }
 
-void adc_flagreset(){
-	readadc = 0;
-	readadcv = 0;
-	readadci = 0;
-	readadcmotorleft = 0;
-	readadcmotorright = 0;
-}
-
 void update_vref(){
 	ADMUX |= 14; //set channel to bandgap reference
+	ADCSRA |= (1<<ADSC); //start conversion
 	while (ADCSTATUS == 0){ //block until conversion finishes
 	}
 	uint16_t bgrawvalue = ADC; //store ADC value for bandgap (1.30V)
@@ -46,5 +39,6 @@ void adc_init(){
 	ADMUX |= (1<<REFS0); //use AVcc reference
 	ADCSRA |= (1<<ADEN); //enable ADC
 	ADCSRA |= ((1<<ADPS0) | (1<<ADPS1) | (1<<ADPS2)); //use clock divider of /128 for 125khz ADC frequency
+	voltagereference = 5000;
 	update_vref();
 }

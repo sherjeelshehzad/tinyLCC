@@ -32,10 +32,13 @@ volatile unsigned int voltage_left_on; //flag to indicate if the left side of th
 volatile unsigned int voltage_right_on; //flag to indicate if the right side of the motor is currently in the PWM ON state
 volatile unsigned int timer0_ovf_count; //keeps track of how many times timer0 has overflown
 volatile unsigned int current_i; //current adc reading index
-volatile unsigned int backemf_i; //backemf adc reading index
+volatile unsigned int currentreadingindex; //current adc array storage index
+volatile unsigned int backemfreadingindex;  //backemf adc reading index
 volatile unsigned int backemffound; //flag to indicate if backemf frequency was found last time
 volatile uint64_t backemffreq; //back emf frequency
 volatile uint64_t backemftime; //back emf time 
+
+volatile unsigned int numcycles; //count how many cycles we have had so far
 
 char* str_buffer; //string buffer to receive data
 

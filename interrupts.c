@@ -85,7 +85,7 @@ ISR(TIMER1_COMPA_vect){
 			readadcmotorleft = 1;
 			backemffound = 0;
 			//reset backemf index
-			backemf_i = 0;
+			backemfreadingindex = 0;
 		}
 		else{
 			//left to right current
@@ -103,7 +103,7 @@ ISR(TIMER1_COMPA_vect){
 			readadcmotorright = 1;
 			backemffound = 0;
 			//reset backemf index
-			backemf_i = 0;
+			backemfreadingindex = 0;
 		}
 		//turn on timer 0 with prescaler /256 to measure backemf time
 		TCCR0 |= ((1<<CS02));
@@ -141,9 +141,14 @@ ISR(TIMER1_COMPB_vect){
 		//back emf pulse has expired (we are driving the motor now), stop reading the adc
 		readadcmotorleft = 0;
 		readadcmotorright = 0;
-		if (backemffound == 0){
-			backemftime += 10000; //add 10ms to back emf time (since we didn't find it previously, we must have driven the motor too fast)
+		if (numcycles >= 50){
+			/*if (backemffound == 0){
+				backemftime += 100; //add 10ms to back emf time (since we didn't find it previously, we must have driven the motor too fast)
+				backemffreq = 1000000000/backemftime;
+				backemffound = 1; //indicate that a back emf value has been "found"
+			}*/
 		}
+		
 		if (t2){
 			//T time crossing has been handled, T/2 is next
 			t2 = 0;
@@ -253,7 +258,11 @@ ISR(TIMER1_COMPB_vect){
 			
 		}
 		//++stop_counter;
-		
+		//stop back emf timer since the time to measure it has expired
+		TCCR0 &= ~((1<<CS02)|(1<<CS01)|(1<<CS00));
+		TCNT0 = 0;
+		timer0_ovf_count = 0;
+		if (numcycles != 50) ++numcycles;
 }
 
 //PWM duty cycle expired, shut off PWM signals
@@ -341,6 +350,7 @@ ISR(TIMER2_OVF_vect){
 		//turn off right NMOS
 		PORTB |= (1<<PB0);
 		//indicate that RHS voltage is on
+		readadc = 1;
 		voltage_right_on = 1;
 	}
 	else{
@@ -354,6 +364,7 @@ ISR(TIMER2_OVF_vect){
 		//turn on right NMOS
 		PORTB &= ~(1<<PB0);
 		//indicate that LHS voltage is on
+		readadc = 1;
 		voltage_left_on = 1;
 	}
 	//turn on PWM timer counter (prescaler /256)

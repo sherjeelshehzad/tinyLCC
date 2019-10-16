@@ -18,7 +18,6 @@ volatile unsigned int voltagereference; //5V reference value in mV
 void adc_init();
 uint16_t adc_read(uint8_t channel);
 uint32_t adc_convert(uint16_t rawvalue);
-void adc_flagreset();//reset adc read flags
 void update_vref();//update the 5V voltage reference value
 
 volatile unsigned int readadcv;
