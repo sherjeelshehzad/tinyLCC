@@ -103,11 +103,11 @@ int main(void)
 	//turn off left PMOS
 	PORTB &= ~(1<<PB2);
 	//turn on left NMOS
-	PORTB &= ~(1<<PB1);
+	PORTB |= (1<<PB1);
 	//turn off right PMOS
 	PORTD &= ~(1<<PD7);
 	//turn on right NMOS
-	PORTB &= ~(1<<PB0);
+	PORTB |= (1<<PB0);
 	
 	//set timer 1 to normal mode
 	TCCR1B &= ~((1<<WGM13) | (1<<WGM12));
