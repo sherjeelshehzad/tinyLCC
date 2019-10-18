@@ -9,6 +9,7 @@
 
 ISR(USART_RXC_vect){
 	//dynamically allocate and reallocate space for string
+	//TODO: this code takes up far too much PROGMEM, remove and replace with static array
 	str_buffer = calloc(1,sizeof(char));
 	char* buffer_ptr = str_buffer;
 	int size = 1;
@@ -163,41 +164,6 @@ ISR(TIMER1_COMPB_vect){
 			//turn on timer 1 again (prescaler /256)
 			TCCR1B |= (1<<CS12);
 			TCCR1B &= ~((1<<CS11) | (1<<CS10));
-			//turn on PWM signals
-			if (t2){
-				//right to left current
-				//turn off left PMOS
-				PORTB &= ~(1<<PB2);
-				//turn on left NMOS
-				PORTB &= ~(1<<PB1);
-				//turn on right PMOS
-				PORTD |= (1<<PD7);
-				//turn off right NMOS
-				PORTB |= (1<<PB0);
-				//indicate that we are ready to read adc from motor RHS to measure voltage and current
-				readadc = 1;
-				readadcv = 1;
-				readadci = 1;
-				//indicate that RHS voltage is on
-				voltage_right_on = 1;
-			}
-			else{
-				//left to right current
-				//turn on left PMOS
-				PORTB |= (1<<PB2);
-				//turn off left NMOS
-				PORTB |= (1<<PB1);
-				//turn off right PMOS
-				PORTD &= ~(1<<PD7);
-				//turn on right NMOS
-				PORTB &= ~(1<<PB0);
-				//indicate that we are ready to read adc from motor LHS to measure voltage and current
-				readadc = 1;
-				readadcv = 1;
-				readadci = 1;
-				//indicate that LHS voltage is on
-				voltage_left_on = 1;
-			}
 			//turn on PWM timer counter (prescaler /256)
 			TCCR2 |= ((1<<CS22) | (1<<CS21));
 			TCCR2 &= ~((1<<CS20));
@@ -217,46 +183,46 @@ ISR(TIMER1_COMPB_vect){
 			TCCR1B |= (1<<CS12);
 			TCCR1B &= ~((1<<CS11) | (1<<CS10));
 			//turn on PWM timer counter (prescaler /64)
-			//turn on PWM signals
-			if (t2){
-				//right to left current
-				//turn off left PMOS
-				PORTB &= ~(1<<PB2);
-				//turn on left NMOS
-				PORTB &= ~(1<<PB1);
-				//turn on right PMOS
-				PORTD |= (1<<PD7);
-				//turn off right NMOS
-				PORTB |= (1<<PB0);
-				//indicate that we are ready to read adc from motor RHS to measure voltage and current
-				readadc = 1;
-				readadcv = 1;
-				readadci = 1;
-				//indicate that RHS voltage is on
-				voltage_right_on = 1;
-			}
-			else{
-				//left to right current
-				//turn on left PMOS
-				PORTB |= (1<<PB2);
-				//turn off left NMOS
-				PORTB |= (1<<PB1);
-				//turn off right PMOS
-				PORTD &= ~(1<<PD7);
-				//turn on right NMOS
-				PORTB &= ~(1<<PB0);
-				//indicate that we are ready to read adc from motor LHS to measure voltage and current
-				readadc = 1;
-				readadcv = 1;
-				readadci = 1;
-				//indicate that LHS voltage is on
-				voltage_left_on = 1;
-			}
 			//turn on PWM timer counter (prescaler /256)
 			TCCR2 |= ((1<<CS22) | (1<<CS21));
 			TCCR2 &= ~((1<<CS20));
 			
 		}
+		
+		//turn on PWM signals
+		if (t2){
+			//right to left current
+			//turn off left PMOS
+			PORTB &= ~(1<<PB2);
+			//turn on left NMOS
+			PORTB &= ~(1<<PB1);
+			//turn on right PMOS
+			PORTD |= (1<<PD7);
+			//turn off right NMOS
+			PORTB |= (1<<PB0);
+			//indicate that RHS voltage is on
+			voltage_right_on = 1;
+		}
+		else{
+			//left to right current
+			//turn on left PMOS
+			PORTB |= (1<<PB2);
+			//turn off left NMOS
+			PORTB |= (1<<PB1);
+			//turn off right PMOS
+			PORTD &= ~(1<<PD7);
+			//turn on right NMOS
+			PORTB &= ~(1<<PB0);
+			//indicate that LHS voltage is on
+			voltage_left_on = 1;
+		}
+		//indicate that we are ready to read adc from motor RHS to measure voltage and current
+		readadc = 1;
+		readadcv = 1;
+		readadci = 1;
+		//reset ADC indices
+		current_i = 0;
+		currentreadingindex = 0;
 		//++stop_counter;
 		//stop back emf timer since the time to measure it has expired
 		TCCR0 &= ~((1<<CS02)|(1<<CS01)|(1<<CS00));
@@ -312,8 +278,6 @@ ISR(TIMER2_COMP_vect){
 		PORTD &= ~(1<<PD7);
 		//turn off right NMOS
 		PORTB |= (1<<PB0);
-		//indicate that RHS voltage is off
-		voltage_right_on = 0;
 	}
 	else{
 		//left to right current
@@ -326,9 +290,11 @@ ISR(TIMER2_COMP_vect){
 		PORTD &= ~(1<<PD7);
 		//turn on right NMOS
 		PORTB &= ~(1<<PB0);
-		//indicate that LHS voltage is off
-		voltage_left_on = 0;
 	}
+	readadc = 1;
+	//indicate that voltage is off
+	voltage_right_on = 0;
+	voltage_left_on = 0;
 	//turn on PWM timer counter (prescaler /256)
 	TCCR2 |= ((1<<CS22) | (1<<CS21));
 	TCCR2 &= ~((1<<CS20));

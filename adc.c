@@ -18,14 +18,13 @@ uint16_t adc_read(uint8_t channel){
 	while (ADCSTATUS == 0){ //block until conversion finishes
 	}
 	return ADC; //return value in mV  
-	
 }
 
 uint32_t adc_convert(uint16_t rawvalue){
 	return (uint32_t)((uint32_t)rawvalue*voltagereference/1024);
 }
 
-void update_vref(){
+static void update_vref(){
 	ADMUX |= 14; //set channel to bandgap reference
 	ADCSRA |= (1<<ADSC); //start conversion
 	while (ADCSTATUS == 0){ //block until conversion finishes
@@ -40,5 +39,5 @@ void adc_init(){
 	ADCSRA |= (1<<ADEN); //enable ADC
 	ADCSRA |= ((1<<ADPS0) | (1<<ADPS1) | (1<<ADPS2)); //use clock divider of /128 for 125khz ADC frequency
 	voltagereference = 5000;
-	update_vref();
+	//update_vref();
 }

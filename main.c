@@ -63,8 +63,9 @@ uint64_t powervalue = 0;
 
 int main(void)
 {
-	//char transmit_buffer[200];
-	//sprintf(transmit_buffer, "{\n%3s\"3\":\n%3s{\n%7s\"mfc\":\n%7s{\n%11s\"req\": \"%3s\",\n%11s\"cur\": \"%3s\"\n%7s},\n%7s\"ver\": \"1.0.0\",\n%7s\"param\":\n%7s{\n%11s\"pwr\":  \"%d.%dW\",\n%11s\"freq\": \"%d.%dHz\",\n%11s\"curr\": \"%dmA\",\n%11s\"volt\": \"%d.%dV\",\n%7s}\n%3s}\n}", "", "", "", "", "", "", "", OCR2, "", "", "", "", "", powerleft, powerright, "", freqleft, freqright, "", current, "", voltleft, voltright, "", "");
+	//char transmit_buffer[300];
+	//sprintf(transmit_buffer, "{\n%3s\"3\":\n%3s{\n%7s\"mfc\":\n%7s{\n%11s\"req\": \"%3s\",\n%11s\"cur\": \"%3s\"\n%7s},\n%7s\"ver\": \"1.0.0\",\n%7s\"param\":\n%7s{\n%11s\"pwr\":  \"%s.%sW\",\n%11s\"freq\": \"%s.%sHz\",\n%11s\"curr\": \"%smA\",\n%11s\"volt\": \"%s.%sV\",\n%7s}\n%3s}\n}", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "");
+	//eeprom_write_block(transmit_buffer,0,strlen(transmit_buffer));	
 	//eeprom_write_byte(0,'0');
 	t2 = 0; //flag for if T/2 time crossing is next to be handled
 	stop_counter = 0; //counter to stop PWM every STOPCYCLE/2 number of cycles
@@ -89,7 +90,7 @@ int main(void)
 	TCCR2 &= ~((1<<COM21) | (1<<COM20));
 	
 	//set output compare value for timer 2 between 0-255 (OCR2/255 % duty cycle)
-	duty_request = 128;
+	duty_request = 255;
 	OCR2 = duty_request;
 	
 	//set prescaler of 64 (gives effective PWM frequency of 980Hz)
@@ -167,6 +168,7 @@ int main(void)
 			//extract and validate data from JSON
 			//check if id == 3
 			if (splitstrings[0][1] == '3'){
+				transmit_data = 1;
 				//if true, check mfc key
 				char check_mfc[4];
 				memcpy(check_mfc, &splitstrings[1][1], 3);
@@ -209,12 +211,12 @@ int main(void)
 							}
 						}
 					}
+					//TODO: add check for "clr" object
 				}
 			}
 			//we have processed everything
 			//free memory, and reset flags
 			data_received = 0;
-			transmit_data = 1;
 			//DONT FORGET TO FREE MEMORY
 			free(str_buffer);
 			free(splitstrings);
@@ -224,6 +226,67 @@ int main(void)
 			UCSRB &= ~(1<<RXEN);
 			//char transmit_buffer[200];
 			//sprintf(transmit_buffer, "{\n%3s\"3\":\n%3s{\n%7s\"mfc\":\n%7s{\n%11s\"req\": \"%3d\",\n%11s\"cur\": \"%3d\"\n%7s},\n%7s\"ver\": \"1.0.0\",\n%7s\"param\":\n%7s{\n%11s\"pwr\":  \"%d.%dW\",\n%11s\"freq\": \"%d.%dHz\",\n%11s\"curr\": \"%dmA\",\n%11s\"volt\": \"%d.%dV\",\n%7s}\n%3s}\n}", "", "", "", "", "", duty_request, "", OCR2, "", "", "", "", "", powerleft, powerright, "", freqleft, freqright, "", current, "", voltleft, voltright, "", "");
+			for (int i = 0; i < 260; ++i){
+				if ((i >= 57) && (i <= 59)){
+					//req flowrate value
+					uart_transmit((duty_request/100) + 48);
+					uart_transmit(((duty_request/10) % 10) + 48);
+					uart_transmit((duty_request % 10) + 48);
+					i += 3;//skip 3 places
+				}
+				if ((i >= 82) && (i <= 84)){
+					//current flowrate value
+					uart_transmit((OCR2/100) + 48);
+					uart_transmit(((OCR2/10) % 10) + 48);
+					uart_transmit((OCR2 % 10) + 48);
+					i += 3;//skip 3 places
+				}
+				if (i == 165){
+					//pwr left value
+					if ((powerleft / 10) == 0){
+						uart_transmit(powerleft + 48);//transmit the number right away
+					}
+					else{//split it into two digits
+						uart_transmit((powerleft/10) + 48);
+						uart_transmit((powerleft % 10) + 48);
+					}
+				}
+				if (i == 166){
+					//pwr right value
+					uart_transmit((powerright/100) + 48);//1st DP
+					uart_transmit(((powerright/10) % 10) + 48);//2nd DP
+				}
+				if (i == 190){
+					//freq left value
+					uart_transmit((freqleft/10) + 48);
+					uart_transmit((freqleft%10) + 48);
+				}
+				if (i == 191){
+					//freq right value
+					//uart_transmit((freqright/(pow(10,log(freqright)))) + 48);//only transmit 1st DP
+				}
+				if (i == 216){
+					//current value
+					uart_transmit((current/1000) + 48);
+					uart_transmit(((current/100) % 10) + 48);
+					uart_transmit(((current/10) % 10) + 48);
+					uart_transmit((current % 10) + 48);
+				}
+				if (i == 241){
+					//voltage left value
+					uart_transmit((voltleft/10) + 48);
+					uart_transmit((voltleft % 10) + 48);
+				}
+				if (i == 242){
+					//voltage right value
+					uart_transmit((voltright/100) + 48);
+					uart_transmit(((voltright/10) % 10) + 48);
+					uart_transmit((voltright % 10) + 48);
+				}
+				//transmit from eeprom
+				uart_transmit(eeprom_read_byte(i));
+				//TODO: add "ew" object
+			}
 			//TODO: add code to detect and report errors/error messages
 			//TODO: also add code to re-transmit errors if detected
 			//uart_transmit_string(transmit_buffer);
@@ -233,11 +296,12 @@ int main(void)
 			UCSRB |= (1<<RXEN);
 			transmit_data = 0;
 		}
-		uart_transmit(48);
+		//uart_transmit(48);
 		//if adc has to be read
 		if (numcycles >= 50){
 			if (readadc){
-				if (!backemffound){
+				//TODO: fix the order of these if-conditions to properly read ADC at the correct intervals
+				/*if (!backemffound){
 					if (readadcmotorleft){
 						//turn off timer 0
 						TCCR0 &= ~((1<<CS02)|(1<<CS01)|(1<<CS00));
@@ -317,15 +381,16 @@ int main(void)
 						//possibly enable ADC interrupt and write a separate function to do non-blocking ADC converts and timer stores to not block other code
 						//once max has stabilised and corresponding time has been obtained, calculate resonant frequency and adjust duty cycle on next while () iteration (if required) and do resonant_done = 1;
 					}
-				}
-				else{//resonant frequency calculation has priority, so do everything else in this else block
+				}*/
+				//else{//resonant frequency calculation has priority, so do everything else in this else block
+					
 					if (readadcv){
-						if (voltage_left_on){
+						/*if (voltage_left_on){
 							//read motor_left for VCC
 							reading = adc_convert(adc_read(LHSVOLTAGECHANNEL));
 							voltagereading = (reading - 220)*2.6997; //store actual voltage value
-						}
-						else if (voltage_right_on){
+						}*/
+						if (voltage_right_on){
 							//read motor_right for VCC
 							reading = adc_convert(adc_read(RHSVOLTAGECHANNEL));
 							voltagereading = (reading - 220)*2.6997; //store actual voltage value
@@ -333,39 +398,43 @@ int main(void)
 						//we have read voltage value (only need to do this once because we are assuming Vcc remains constant between PWM pulses), turn off voltage reading flag
 						readadcv = 0;
 					}
-					if (readadci){
-						if (current_i != NUMSAMPLESI){
+					else if (readadci){
+						if (currentreadingindex != NUMSAMPLESI){
+							//uart_transmit(voltage_left_on + 48);
+							//uart_transmit(voltage_right_on + 48);
+							//uart_transmit('\n');
 							if ((voltage_left_on) || (voltage_right_on)){
 								//store current ADC samples into array, do NOT reset the index between sampling intervals so we can build up a full array
 								//also at the same time, multiply adc current value by the voltage value to get the instantaneous power array
 								//store only alternate samples (i % 50 == 0) (so we don't get more than ~50 samples for the whole of T/4)
 								reading = adc_convert(adc_read(ISHIFTEDCHANNEL));
-								if ((current_i % 50) == 0){
-									currentarray[currentreadingindex] = ((reading - 220) * 0.2074) * 10; //store actual current value (mA)
-									powerarray[currentreadingindex] = currentarray[currentreadingindex] * voltagereading; //store power in uW
+								if((current_i % 2) == 0){
+									currentarray[currentreadingindex] = reading; //store i_sense_shifted voltage
+									//powerarray[currentreadingindex] = currentarray[currentreadingindex] * voltagereading; //store power in uW
 									++currentreadingindex;
 									if (reading > 3000) {//short circuit condition test
 										shortcircuit = 1;
 									}
 								}
 							}
-							else{
+							else if ((!voltage_left_on) && (!voltage_right_on)){
+								//uart_transmit('A');
 								//if PWM is turned off, current is 0
 								//therefore store a 0 in the array (again, do not reset the index yet)
 								//but make sure to read still ADC to generate the correct number of samples (because we don't have a spare timer)
 								//also at the same time, multiply adc current value by the voltage value to get the instantaneous power array
 								//store only alternate samples (every 25th sample using (i % 50 == 0)) (so we don't get more than ~50 samples)
 								adc_convert(adc_read(ISHIFTEDCHANNEL));
-								if ((current_i % 50) == 0){
+								if ((current_i % 2) == 0){
 									currentarray[currentreadingindex] = 0;
-									powerarray[currentreadingindex] = 0;
+									//powerarray[currentreadingindex] = 0;
 									++currentreadingindex;
 								}
 							}
 							++current_i;
 						}
 					}
-				}
+				//}
 			}
 		}
 		
@@ -375,8 +444,8 @@ int main(void)
 				//if (((backemftime - OCR1A) < 1000) || (OCR1A - (backemftime) < 1000)){
 				backemffound = 0; //reset found flag
 				//backemftime = 1250;
-				OCR1A = 1250; //t/4 = backemf/16
-				OCR1B = OCR1A * 2;//t/2 is always 2 * t/4
+				//OCR1A = 1250; //t/4 = backemf/16
+				//OCR1B = OCR1A * 2;//t/2 is always 2 * t/4
 				//}
 			}
 		}
@@ -384,17 +453,28 @@ int main(void)
 		//once we have done adc readings, do rms/power calcs and store the values in their proper places
 		if (currentreadingindex == NUMSAMPLESI){
 			//calculate RMS current
+			//uart_transmit_string("works\n");
+			char buf[10];
 			for (int i = 0; i < NUMSAMPLESI; ++i){
+				if (currentarray[i] != 0){
+					currentarray[i] = (((currentarray[i] - 200) * 0.2445)) * 10; //store actual current value (mA)
+					//currentarray[i] = (((currentarray[i] - 220) * 0.2074)) * 10; //store actual current value (mA)
+				}
+				powerarray[i] = currentarray[i] * voltagereading;
+				//sprintf(buf,"%u\n",currentarray[i]);
 				currentarray[i] = square(currentarray[i]); //square
+				//uart_transmit_string(buf);
 				powervalue += powerarray[i]; //summation of power 
 				currentvalue += currentarray[i];//summation of current^2
 			}
 			currentvalue /= NUMSAMPLESI; //mean
 			currentvalue = sqrt(currentvalue); //root - gives RMS current in (mA)
-
-			powervalue /= NUMSAMPLESI; //power mean (uW)
-			powervalue /= 1000; //gives average power in (mW)
+			currentvalue /= 2; //since we are operating bidirectional current and only reading the "ON" period of the signals for (T/4 + T/4) = T/2, we need halve our obtained RMS value
 			
+			powervalue = currentvalue * voltagereading; //power mean (uW)
+			powervalue /= 1000; //gives average power in (mW)
+			sprintf(buf,"current = %u\n",powervalue);
+			uart_transmit_string(buf);
 			//put all the found circuit parameters into the proper format for transmission)
 			voltleft = voltagereading/1000;
 			voltright = voltagereading % 1000;
@@ -408,6 +488,9 @@ int main(void)
 			powerleft = powervalue / 1000;
 			powerright = powervalue % 1000;
 			
+			//reset ADC indices
+			current_i = 0;
+			currentreadingindex = 0;
 		}
 		//TODO: add stall detection here
 		//TODO: add short circuit detection here

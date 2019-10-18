@@ -38,6 +38,13 @@ volatile unsigned int backemffound; //flag to indicate if backemf frequency was 
 volatile uint64_t backemffreq; //back emf frequency
 volatile uint64_t backemftime; //back emf time 
 
+//adc read flags
+volatile unsigned int readadcv;
+volatile unsigned int readadci;
+volatile unsigned int readadc;
+volatile unsigned int readadcmotorleft;
+volatile unsigned int readadcmotorright;
+
 volatile unsigned int numcycles; //count how many cycles we have had so far
 
 char* str_buffer; //string buffer to receive data
