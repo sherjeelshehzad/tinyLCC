@@ -30,7 +30,7 @@ volatile unsigned int data_received; //flag to indicate to main that data has be
 
 volatile unsigned int voltage_left_on; //flag to indicate if the left side of the motor is currently in the PWM ON state
 volatile unsigned int voltage_right_on; //flag to indicate if the right side of the motor is currently in the PWM ON state
-volatile unsigned int timer0_ovf_count; //keeps track of how many times timer0 has overflown
+volatile uint32_t timer0_ovf_count; //keeps track of how many times timer0 has overflown
 volatile unsigned int current_i; //current adc reading index
 volatile unsigned int currentreadingindex; //current adc array storage index
 volatile unsigned int backemfreadingindex;  //backemf adc reading index
@@ -47,7 +47,8 @@ volatile unsigned int readadcmotorright;
 
 volatile unsigned int numcycles; //count how many cycles we have had so far
 
-char* str_buffer; //string buffer to receive data
+char str_buffer[50]; //string buffer to receive data
+char uart_char; //char to store UART data
 
 volatile unsigned char received_char;
 

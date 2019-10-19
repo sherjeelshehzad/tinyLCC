@@ -9,23 +9,13 @@
 
 ISR(USART_RXC_vect){
 	//dynamically allocate and reallocate space for string
-	//TODO: this code takes up far too much PROGMEM, remove and replace with static array
-	str_buffer = calloc(1,sizeof(char));
 	char* buffer_ptr = str_buffer;
-	int size = 1;
-	*str_buffer = uart_receive();
-	//only end receive when we receive a newline
-	while ((*buffer_ptr != '\n') || (*buffer_ptr != '\r')){
-		str_buffer = realloc(str_buffer,(++size)*sizeof(char));
+	while((*buffer_ptr != '\n') || (*buffer_ptr != '\r') || (*buffer_ptr != (str_buffer + 50))){
 		//make a null terminated string for strcat()
-		char uart_char[2];
-		uart_char[0] = uart_receive();
-		uart_char[1] = '\0';
-		strcat(str_buffer,uart_char);
+		uart_char = uart_receive();
+		*buffer_ptr = uart_char;
 		++buffer_ptr;
 	}
-	//add null terminator to turn it into proper c-string
-	str_buffer = realloc(str_buffer,(++size)*sizeof(char));
 	*(++buffer_ptr) = '\0';
 	//turn off receiver to prevent any more interrupts before we have parsed the current data
 	UCSRB &= ~(1<<RXEN);
@@ -83,10 +73,11 @@ ISR(TIMER1_COMPA_vect){
 			PORTB |= (1<<PB0);
 			//indicate that we are ready to start reading motor LHS back emf
 			readadc = 1;
-			readadcmotorleft = 1;
+			readadcmotorright = 1;
 			backemffound = 0;
 			//reset backemf index
 			backemfreadingindex = 0;
+			PORTD &= ~(1<<PD5);
 		}
 		else{
 			//left to right current
@@ -101,12 +92,14 @@ ISR(TIMER1_COMPA_vect){
 			PORTB &= ~(1<<PB0);
 			//indicate that we are ready to start reading motor RHS back emf
 			readadc = 1;
-			readadcmotorright = 1;
+			readadcmotorleft = 1;
 			backemffound = 0;
 			//reset backemf index
 			backemfreadingindex = 0;
+			PORTD |= (1<<PD5);
 		}
 		//turn on timer 0 with prescaler /256 to measure backemf time
+		TCNT0 = 0;
 		TCCR0 |= ((1<<CS02));
 		TCCR0 &= ~((1<<CS01)|(1<<CS00));
 		//reset PWM timer counter
@@ -143,11 +136,11 @@ ISR(TIMER1_COMPB_vect){
 		readadcmotorleft = 0;
 		readadcmotorright = 0;
 		if (numcycles >= 50){
-			/*if (backemffound == 0){
-				backemftime += 100; //add 10ms to back emf time (since we didn't find it previously, we must have driven the motor too fast)
-				backemffreq = 1000000000/backemftime;
+			if (backemffound == 0){
+				backemftime += 5; //add 0.1ms to back emf time (since we didn't find it previously, we must have driven the motor too fast)
+				//backemffreq = 1000000000/backemftime;
 				backemffound = 1; //indicate that a back emf value has been "found"
-			}*/
+			}
 		}
 		
 		if (t2){
