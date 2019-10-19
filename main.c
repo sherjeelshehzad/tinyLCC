@@ -42,6 +42,9 @@ unsigned int reading = 0;
 unsigned int duty_request; //the currently requested duty cycle value
 unsigned int transmit_data = 0; //indicate to the UART to transmit a json packet
 unsigned int clear_errors = 0; //indicate to the LCC to clear the errors
+unsigned int error = 0; //flag that indicates if we have an error
+unsigned int stalled = 0; //flag that indicates if the motor is stalled
+unsigned int collision = 0; //flag that indicates if there has been a head collision
 volatile unsigned int powerleft = 1;
 volatile unsigned int powerright = 38;
 unsigned int freqleft = 12;
@@ -251,6 +254,7 @@ int main(void)
 													if (str_buffer[33] == 'e') {
 														if (str_buffer[34] == 'w') {//if clear error detected, set error clear flag
 															//printf("clr requested\n");
+															clear_errors = 1;
 														}
 													}
 												}
@@ -264,27 +268,26 @@ int main(void)
 				}
 			}
 		}
+		
 		if (transmit_data){
 			//disable receiver while transmitting to avoid echo-back
 			UCSRB &= ~(1<<RXEN);
 			//char transmit_buffer[200];
 			//sprintf(transmit_buffer, "{\n%3s\"3\":\n%3s{\n%7s\"mfc\":\n%7s{\n%11s\"req\": \"%3d\",\n%11s\"cur\": \"%3d\"\n%7s},\n%7s\"ver\": \"1.0.0\",\n%7s\"param\":\n%7s{\n%11s\"pwr\":  \"%d.%dW\",\n%11s\"freq\": \"%d.%dHz\",\n%11s\"curr\": \"%dmA\",\n%11s\"volt\": \"%d.%dV\",\n%7s}\n%3s}\n}", "", "", "", "", "", duty_request, "", OCR2, "", "", "", "", "", powerleft, powerright, "", freqleft, freqright, "", current, "", voltleft, voltright, "", "");
 			for (int i = 0; i < 260; ++i){
-				if ((i >= 57) && (i <= 59)){
+				if (i == 23){
 					//req flowrate value
 					uart_transmit((duty_request/100) + 48);
 					uart_transmit(((duty_request/10) % 10) + 48);
 					uart_transmit((duty_request % 10) + 48);
-					i += 3;//skip 3 places
 				}
-				if ((i >= 82) && (i <= 84)){
+				if (i == 32){
 					//current flowrate value
 					uart_transmit((OCR2/100) + 48);
 					uart_transmit(((OCR2/10) % 10) + 48);
 					uart_transmit((OCR2 % 10) + 48);
-					i += 3;//skip 3 places
 				}
-				if (i == 165){
+				if (i == 74){
 					//pwr left value
 					if ((powerleft / 10) == 0){
 						uart_transmit(powerleft + 48);//transmit the number right away
@@ -294,41 +297,77 @@ int main(void)
 						uart_transmit((powerleft % 10) + 48);
 					}
 				}
-				if (i == 166){
+				if (i == 75){
 					//pwr right value
 					uart_transmit((powerright/100) + 48);//1st DP
 					uart_transmit(((powerright/10) % 10) + 48);//2nd DP
 				}
-				if (i == 190){
+				if (i == 86){
 					//freq left value
 					uart_transmit((freqleft/10) + 48);
 					uart_transmit((freqleft%10) + 48);
 				}
-				if (i == 191){
+				if (i == 87){
 					//freq right value
 					//uart_transmit((freqright/(pow(10,log(freqright)))) + 48);//only transmit 1st DP
 				}
-				if (i == 216){
+				if (i == 99){
 					//current value
 					uart_transmit((current/1000) + 48);
 					uart_transmit(((current/100) % 10) + 48);
 					uart_transmit(((current/10) % 10) + 48);
 					uart_transmit((current % 10) + 48);
 				}
-				if (i == 241){
+				if (i == 112){
 					//voltage left value
 					uart_transmit((voltleft/10) + 48);
 					uart_transmit((voltleft % 10) + 48);
 				}
-				if (i == 242){
+				if (i == 113){
 					//voltage right value
 					uart_transmit((voltright/100) + 48);
 					uart_transmit(((voltright/10) % 10) + 48);
 					uart_transmit((voltright % 10) + 48);
 				}
-				//transmit from eeprom
-				uart_transmit(eeprom_read_byte(i));
-				//TODO: add "ew" object
+				if ((i >= 118) && (i <= 168)){//error condition check
+					if (error){
+						if (i <= 136){
+							uart_transmit(eeprom_read_byte((uint8_t*)i));//transmit clr object and error object header
+						}
+						else{//check to see which errors we have and transmit accordingly
+							if (i <= 148){
+								if (stalled){
+									uart_transmit(eeprom_read_byte((uint8_t*)i));//transmit cmprstalled
+								}
+								else{
+									uart_transmit(' '); //transmit whitespace
+								}
+							}
+							else if (i == 149){
+								if (stalled && collision){
+									uart_transmit(eeprom_read_byte((uint8_t*)i));//transmit comma if both errors present
+								}
+							}
+							else if (i <= 166){
+								if (collision){
+									uart_transmit(eeprom_read_byte((uint8_t*)i));//transmit pistoncollision
+								}
+								else{
+									uart_transmit(' '); //transmit whitespace
+								}
+							}
+							else{
+								uart_transmit(eeprom_read_byte((uint8_t*)i));//transmit the closing brace and newline
+							}
+						}
+					}
+					else{
+						uart_transmit(' '); //transmit whitespace
+					}
+				}
+				else{//if no error condition, transmit json as usual from eeprom
+					uart_transmit(eeprom_read_byte((uint8_t*)i));//we have stored the formatted json string in the eeprom to avoid PROGMEM overfill issues
+				}
 			}
 			//TODO: add code to detect and report errors/error messages
 			//TODO: also add code to re-transmit errors if detected
@@ -560,7 +599,7 @@ int main(void)
 			}
 			currentvalue /= NUMSAMPLESI; //mean
 			currentvalue = sqrt(currentvalue); //root - gives RMS current in (mA)
-			currentvalue /= 2; //since we are operating bidirectional current and only reading the "ON" period of the signals for (T/4 + T/4) = T/2, we need halve our obtained RMS value
+			currentvalue /= 2; //since we are operating bidirectional current and only reading the "ON" period of the signals for (T/4 + T/4) = T/2, we need to halve our obtained RMS value
 			
 			powervalue = currentvalue * voltagereading; //power mean (uW)
 			powervalue /= 1000; //gives average power in (mW)
@@ -583,6 +622,7 @@ int main(void)
 			current_i = 0;
 			currentreadingindex = 0;
 		}
+		//TODO: add clear error logic here
 		//TODO: add stall detection here
 		//TODO: add short circuit detection here
 		
