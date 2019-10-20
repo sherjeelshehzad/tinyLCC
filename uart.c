@@ -8,7 +8,7 @@
 #include "uart.h"
 
 void uart_init(){
-	UCSRB |= (1<<TXEN); //set transmit and receive bit
+	UCSRB |= ((1<<TXEN)|(1<<RXEN)); //set transmit and receive bit
 	UCSRB |= (1<<RXCIE);
 	UBRRH = (ubrrvalue >> 8); //load baud rate register with calculated value
 	UBRRL = ubrrvalue;
@@ -35,5 +35,5 @@ void uart_transmit(uint8_t data){
 char uart_receive(){
 	while (RXCOMP == 0){ //wait for receive to be completed
 	}
-	return UDR; //load data register with data byte
+	return UDR; //load data byte from data register
 }

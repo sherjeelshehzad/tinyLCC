@@ -13,6 +13,7 @@
 
 #define UDREMPTY (UCSRA & (1<<UDRE)) //check if data register is empty
 #define RXCOMP (UCSRA & (1<<RXC)) //check if RXC flag has been set
+#define TXCOMP (UCSRA & (1<<TXC)) //check if RXC flag has been set
 #define ubrrvalue 103 //F_CPU/(16*BAUDRATE)-1 //Baud rate of 9600
 
 void uart_init();//initialise uart
